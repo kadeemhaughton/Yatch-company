@@ -1,0 +1,1364 @@
+<title>Yacht Fleet Accounting</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Enterprise ledger shell: dark grouped sidebar, context top bar, dense bordered data views. */
+  :root{
+    --app:#f4f6f8; --surface:#ffffff; --raised:#fbfcfd;
+    --ink:#101828; --ink2:#344054; --muted:#667085; --faint:#98a2b3;
+    --line:#e4e7ec; --line2:#eef1f4;
+    --sidebar:#0c1220; --side-ink:#cdd4e0; --side-muted:#727d92; --side-hover:#151d2e; --side-active:#1b2740; --side-line:#1c2639;
+    --accent:#2b57d6; --accent-ink:#ffffff; --accent-soft:#e7edfb;
+    --good:#067647; --good-bg:#e7f6ee; --warn:#b54708; --warn-bg:#fdf0da; --bad:#b42318; --bad-bg:#fde7e4;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --app:#090d14; --surface:#10151f; --raised:#141b27;
+    --ink:#e8ebf1; --ink2:#c2c8d4; --muted:#8a93a3; --faint:#636d7e;
+    --line:#1f2836; --line2:#1a212e;
+    --sidebar:#070b12; --side-ink:#c6cdda; --side-muted:#6a7488; --side-hover:#121a28; --side-active:#182238; --side-line:#19212f;
+    --accent:#5981ef; --accent-ink:#ffffff; --accent-soft:#17213a;
+    --good:#58c78d; --good-bg:#102418; --warn:#e0a44a; --warn-bg:#2b2211; --bad:#e58a84; --bad-bg:#2c1816;
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --app:#090d14; --surface:#10151f; --raised:#141b27;
+    --ink:#e8ebf1; --ink2:#c2c8d4; --muted:#8a93a3; --faint:#636d7e;
+    --line:#1f2836; --line2:#1a212e;
+    --sidebar:#070b12; --side-ink:#c6cdda; --side-muted:#6a7488; --side-hover:#121a28; --side-active:#182238; --side-line:#19212f;
+    --accent:#5981ef; --accent-ink:#ffffff; --accent-soft:#17213a;
+    --good:#58c78d; --good-bg:#102418; --warn:#e0a44a; --warn-bg:#2b2211; --bad:#e58a84; --bad-bg:#2c1816;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--app); color:var(--ink); font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif; line-height:1.45; font-size:14px}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  .num{font-variant-numeric:tabular-nums}
+  button{font-family:inherit}
+  .view{display:none}
+  .view.active{display:block}
+
+  .app{display:flex; min-height:100vh; align-items:stretch}
+
+  /* Sidebar */
+  .side{width:224px; flex:none; background:var(--sidebar); color:var(--side-ink); position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto; display:flex; flex-direction:column; padding:16px 10px; padding-left:max(10px,env(safe-area-inset-left,0px))}
+  .logo{display:flex; align-items:center; gap:9px; padding:6px 8px 14px; margin-bottom:8px; border-bottom:1px solid var(--side-line)}
+  .logo .mk{flex:none; width:30px; height:30px; border-radius:6px; background:var(--accent); display:flex; align-items:center; justify-content:center}
+  .logo .mk svg{width:17px; height:17px}
+  .logo .nm{font-weight:600; font-size:13.5px; color:#fff; letter-spacing:.2px; line-height:1.1}
+  .logo .nm small{display:block; font-weight:400; font-size:10px; color:var(--side-muted); letter-spacing:.3px; margin-top:2px}
+  .nav-grp{margin-top:12px}
+  .nav-lab{font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--side-muted); padding:0 10px; margin-bottom:5px}
+  .nav-i{display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:0; color:var(--side-ink); cursor:pointer; padding:7px 10px; border-radius:6px; font-size:13px; font-weight:500}
+  .nav-i:hover{background:var(--side-hover)}
+  .nav-i.on{background:var(--side-active); color:#fff}
+  .nav-i.on .ic{color:var(--accent)}
+  .nav-i .ic{flex:none; width:16px; height:16px; color:var(--side-muted); display:flex}
+  .nav-i .ic svg{width:16px; height:16px}
+  .side-foot{margin-top:auto; padding:12px 10px 4px; border-top:1px solid var(--side-line); color:var(--side-muted); font-size:10.5px; line-height:1.6}
+
+  /* Body + topbar */
+  .body{flex:1; min-width:0; display:flex; flex-direction:column}
+  .topbar{position:sticky; top:0; z-index:5; background:var(--surface); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 24px; padding-right:max(24px,env(safe-area-inset-right,0px))}
+  .topbar .ctx{font-size:12.5px; color:var(--muted)}
+  .topbar .ctx b{color:var(--ink2); font-weight:600}
+  .topbar .right{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .chip{font-size:11.5px; color:var(--ink2); background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:5px 10px; font-weight:500}
+  .chip.env{color:var(--warn); background:var(--warn-bg); border-color:transparent; font-weight:600; letter-spacing:.3px}
+
+  .main{padding:22px 24px 40px; padding-right:max(24px,env(safe-area-inset-right,0px))}
+  .vhead{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:16px}
+  .vhead h1{font-size:19px; font-weight:600; letter-spacing:-.2px; margin:0; color:var(--ink)}
+  .vhead .sub{color:var(--muted); font-size:12.5px; margin-top:3px; max-width:70ch}
+  .link{color:var(--accent); font-weight:600; font-size:12.5px; cursor:pointer; background:none; border:0; padding:0; display:inline-flex; gap:5px; align-items:center}
+  .link:hover{text-decoration:underline}
+
+  /* Cards + sections */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:8px; margin-bottom:16px}
+  .card-h{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 15px; border-bottom:1px solid var(--line)}
+  .card-h h2{font-size:12px; font-weight:600; letter-spacing:.3px; color:var(--ink); margin:0}
+  .card-h .hint{font-size:11.5px; color:var(--faint)}
+  .card-b{padding:14px 15px}
+  .card-b.flush{padding:0}
+
+  /* KPI strip */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px}
+  @media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:13px 14px}
+  .kpi .k{font-size:11px; font-weight:500; color:var(--muted)}
+  .kpi .v{font-size:22px; font-weight:600; letter-spacing:-.4px; color:var(--ink); margin-top:5px}
+  .kpi .d{font-size:11px; color:var(--faint); margin-top:3px}
+
+  /* Tables */
+  table.t{width:100%; border-collapse:collapse; font-size:13px}
+  table.t th{text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); padding:9px 14px; border-bottom:1px solid var(--line); background:var(--raised); white-space:nowrap}
+  table.t td{padding:10px 14px; border-bottom:1px solid var(--line2); color:var(--ink2); vertical-align:middle}
+  table.t tr:last-child td{border-bottom:0}
+  table.t td.r, table.t th.r{text-align:right}
+  table.t .strong{color:var(--ink); font-weight:600}
+  table.t tr.clickable{cursor:pointer}
+  table.t tr.clickable:hover td{background:var(--raised)}
+  .tbl-wrap{overflow-x:auto}
+
+  .tag{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:5px; white-space:nowrap}
+  .tag.good{color:var(--good); background:var(--good-bg)} .tag.warn{color:var(--warn); background:var(--warn-bg)}
+  .tag.bad{color:var(--bad); background:var(--bad-bg)} .tag.mut{color:var(--muted); background:var(--line2)}
+  .tag.acc{color:var(--accent); background:var(--accent-soft)}
+
+  .idpill{font-size:11px; color:var(--ink2); background:var(--raised); border:1px solid var(--line); border-radius:5px; padding:2px 7px}
+
+  .alert{display:flex; gap:10px; align-items:flex-start; background:var(--warn-bg); border:1px solid transparent; border-radius:7px; padding:10px 13px; color:var(--warn); font-size:12.5px; margin:12px 15px 2px}
+  .alert svg{flex:none; margin-top:1px}
+
+  /* Forms */
+  .grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 14px}
+  @media (max-width:760px){.grid{grid-template-columns:1fr 1fr}}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+  .f{display:flex; flex-direction:column; gap:5px; min-width:0}
+  .f.full{grid-column:1/-1}
+  .f label{font-size:11px; font-weight:500; color:var(--muted)}
+  .f input, .f select{font-family:inherit; font-size:13px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px 9px; width:100%; max-width:100%; box-sizing:border-box}
+  .f select{appearance:none; -webkit-appearance:none; -moz-appearance:none; padding-right:30px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center}
+  .f input:focus, .f select:focus{outline:2px solid var(--accent-soft); outline-offset:0; border-color:var(--accent)}
+  .inline-check{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink2); cursor:pointer; margin-top:22px}
+  .inline-check input{width:15px; height:15px; accent-color:var(--accent)}
+  .calc{font-size:12px; color:var(--muted); margin-top:22px}
+  .calc b{color:var(--ink); font-weight:600; font-size:15px}
+
+  .btn{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--accent); cursor:pointer; font-weight:600; font-size:13px; padding:8px 14px; border-radius:6px; background:var(--accent); color:#fff}
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:var(--surface); color:var(--ink2); border-color:var(--line)}
+  .btn.ghost:hover{background:var(--raised); filter:none}
+  .file{display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; font-weight:500; color:var(--ink2); border:1px solid var(--line); border-radius:6px; padding:8px 11px; background:var(--surface)}
+  .file:hover{background:var(--raised)}
+  input[type=file]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+  .fname{font-size:12px; color:var(--faint)}
+  .msg{font-size:12px; color:var(--good)}
+
+  /* Receipts */
+  .rc{display:inline-flex; align-items:center; gap:6px; cursor:pointer; border:1px solid var(--line); border-radius:5px; padding:2px 7px 2px 3px; background:var(--surface); font-size:11px; color:var(--ink2)}
+  .rc:hover{border-color:var(--accent)}
+  .rc img{width:22px; height:22px; object-fit:cover; border-radius:3px; display:block}
+  .rc .doc{width:22px; height:22px; border-radius:3px; background:var(--ink2); color:#fff; display:flex; align-items:center; justify-content:center; font-size:7.5px; font-weight:700}
+  .none{color:var(--faint); font-size:11.5px}
+
+  /* Vessel detail */
+  .vd-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:15px 16px; margin-bottom:16px}
+  .vd-id{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; font-size:12px; color:var(--muted)}
+  .vd-id b{color:var(--ink2); font-weight:600}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:900px){.two{grid-template-columns:1fr}}
+
+  /* Statement rows */
+  .sr{display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:13px}
+  .sr .l{color:var(--muted)} .sr .v{font-variant-numeric:tabular-nums; color:var(--ink2)}
+  .sr.ind .l{padding-left:12px}
+  .sr.tot{border-top:1px solid var(--line); margin-top:3px; padding-top:7px; font-weight:600}
+  .sr.tot .l, .sr.tot .v{color:var(--ink)}
+  .sr.ded .v{color:var(--muted)}
+  .payout{margin-top:12px; background:var(--accent-soft); border:1px solid transparent; border-radius:7px; padding:11px 14px; display:flex; align-items:center; justify-content:space-between}
+  .payout .k{font-size:11px; font-weight:600; letter-spacing:.3px; text-transform:uppercase; color:var(--accent)}
+  .payout .v{font-size:21px; font-weight:700; letter-spacing:-.3px; color:var(--ink); font-variant-numeric:tabular-nums}
+  .seclab{font-size:10.5px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--faint); margin:14px 0 5px; padding-bottom:4px; border-bottom:1px solid var(--line2)}
+  .docs{display:flex; flex-wrap:wrap; gap:7px; margin-top:6px}
+
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden}
+  .seg button{border:0; background:var(--surface); color:var(--muted); font-size:12px; font-weight:500; padding:7px 13px; cursor:pointer}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
+
+  .steps .step{display:flex; align-items:center; gap:11px; padding:11px 15px; border-bottom:1px solid var(--line2); cursor:pointer}
+  .steps .step:last-child{border-bottom:0}
+  .steps input{width:17px; height:17px; accent-color:var(--accent); flex:none}
+  .steps .step.done span{color:var(--muted); text-decoration:line-through}
+  .bar{height:6px; background:var(--line2); border-radius:999px; overflow:hidden; margin:0 15px 12px}
+  .bar span{display:block; height:100%; background:var(--accent); width:0}
+
+  .note{font-size:12px; color:var(--muted); line-height:1.6}
+  .note b{color:var(--ink2); font-weight:600}
+
+  .cell-inp{font-family:inherit; font-size:12.5px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:5px; padding:4px 6px; width:74px; text-align:right; font-variant-numeric:tabular-nums}
+  .cell-inp:focus{outline:1px solid var(--accent); border-color:var(--accent)}
+  .del{border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:11px; font-weight:600; padding:3px 9px; border-radius:5px; cursor:pointer}
+  .del:hover{color:var(--bad); border-color:var(--bad)}
+  .type-chip{display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--ink2); background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:4px 6px 4px 11px}
+  .type-chip button{border:0; background:none; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:0 3px}
+  .type-chip button:hover{color:var(--bad)}
+
+  /* Modal */
+  .modal{position:fixed; inset:0; background:rgba(9,13,20,.6); display:none; align-items:center; justify-content:center; padding:24px; z-index:50}
+  .modal.open{display:flex}
+  .modal-c{background:var(--surface); border:1px solid var(--line); border-radius:10px; max-width:440px; width:100%; max-height:86vh; overflow:auto}
+  .modal-h{display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid var(--line)}
+  .modal-h .t{font-weight:600; font-size:13px}
+  .modal-x{border:1px solid var(--line); background:var(--surface); cursor:pointer; width:26px; height:26px; border-radius:6px; color:var(--ink2); font-size:15px; line-height:1}
+  .modal-b{padding:16px; text-align:center}
+  .modal-b img{max-width:100%; border-radius:6px; border:1px solid var(--line)}
+  .modal-b .nd{color:var(--muted); font-size:13px; padding:28px 10px}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo">
+      <span class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v15"/><path d="M8 7h8"/><path d="M4 13a8 8 0 0 0 16 0"/><circle cx="12" cy="3" r="1"/></svg></span>
+      <span class="nm">Yacht Fleet Accounting<small>Prototype build</small></span>
+    </div>
+
+    <div class="nav-grp">
+      <div class="nav-lab">Overview</div>
+      <button class="nav-i on" data-view="dash"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>Dashboard</button>
+      <button class="nav-i" data-view="financials"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16l3.5-4 3 2.5L20 8"/></svg></span>Financials</button>
+    </div>
+
+    <div class="nav-grp">
+      <div class="nav-lab">Divisions</div>
+      <button class="nav-i" data-view="charters"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span>Charters</button>
+      <button class="nav-i" data-view="membership"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M13 10h5M13 14h5"/></svg></span>Membership</button>
+      <button class="nav-i" data-view="sailing"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M7 10v4c0 1.5 2.2 3 5 3s5-1.5 5-3v-4"/></svg></span>Sailing School</button>
+      <button class="nav-i" data-view="captains"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="7" r="3"/><path d="M6 21c0-3.5 2.7-6 6-6s6 2.5 6 6"/></svg></span>Captains</button>
+      <button class="nav-i" data-view="brokerage"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 12l-8 8-9-9V3h8l9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg></span>Brokerage</button>
+    </div>
+
+    <div class="nav-grp">
+      <div class="nav-lab">Operations</div>
+      <button class="nav-i" data-view="vessels"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15l2-6h14l2 6"/><path d="M3 15a9 5 0 0 0 18 0"/><path d="M12 9V4l5 2-5 3"/></svg></span>Vessels</button>
+      <button class="nav-i" data-view="expenses"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>Expenses</button>
+      <button class="nav-i" data-view="payroll"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>Payroll</button>
+    </div>
+
+    <div class="nav-grp">
+      <div class="nav-lab">Reports</div>
+      <button class="nav-i" data-view="owners"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2.2-5 5-5s5 2 5 5"/><path d="M15 7h5M15 11h5M17 15h3"/></svg></span>Owner Reports</button>
+      <button class="nav-i" data-view="recon"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></span>Reconciliation</button>
+      <button class="nav-i" data-view="close"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 11l2.5 2.5L16 9"/><rect x="3.5" y="4" width="17" height="16" rx="2"/></svg></span>Month-End Close</button>
+    </div>
+
+    <div class="side-foot">Sample data only. No real client figures.<br>Prototype by Kadeem Haughton.</div>
+  </aside>
+
+  <div class="body">
+    <div class="topbar">
+      <div class="ctx">Client: <b>[Yacht company, to be named]</b> &nbsp;&middot;&nbsp; Gulf Coast, FL</div>
+      <div class="right">
+        <span class="chip">Period: <b style="color:var(--ink)">Nov 2026</b></span>
+        <span class="chip env">Sample data</span>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dash">
+        <div class="vhead"><div><h1>Fleet Overview</h1><div class="sub">Charter revenue, expenses, and owner payouts across the fleet for the current period.</div></div></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Per-Vessel P&amp;L</h2><span class="hint">Click a vessel to open its ledger</span></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="dash-pnl"></table></div><div id="dash-alert"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Divisions</h2><span class="hint">Six revenue lines across the company</span></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="div-tbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- FINANCIALS (company P&L, live) -->
+      <section class="view" id="view-financials">
+        <div class="vhead"><div><h1>Financials</h1><div class="sub">The company's live profit and loss. Revenue, expenses, and net income recompute automatically from the charter, expense, payroll, membership, and refund logs. Built to share with the business owner.</div></div></div>
+        <div class="kpis" id="fin-kpis"></div>
+        <div class="two">
+          <div class="card"><div class="card-h"><h2>Profit &amp; Loss</h2><span class="hint">Company, period to date</span></div><div class="card-b" id="fin-pnl"></div></div>
+          <div>
+            <div class="card"><div class="card-h"><h2>Revenue vs Expenses</h2></div><div class="card-b" id="fin-chart"></div></div>
+            <div class="card">
+              <div class="card-h"><h2>Log a Refund</h2><span class="hint">Reduces revenue and net income</span></div>
+              <div class="card-b">
+                <div class="grid">
+                  <div class="f"><label for="rf-date">Date</label><input type="date" id="rf-date" value="2026-11-16"></div>
+                  <div class="f"><label for="rf-div">Division</label><select id="rf-div"><option>Charter</option><option>Membership</option><option>Sailing school</option><option>Captain services</option><option>Other</option></select></div>
+                  <div class="f"><label for="rf-proc">Processor</label><select id="rf-proc"><option>Stripe</option><option>Square</option><option>PayPal</option><option>ACH</option><option>Zelle</option><option>Website</option></select></div>
+                  <div class="f"><label for="rf-amt">Amount ($)</label><input type="number" id="rf-amt" placeholder="0" min="0"></div>
+                  <div class="f full"><label for="rf-reason">Reason</label><input type="text" id="rf-reason" placeholder="e.g. Weather cancellation"></div>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="rf-add">Log refund</button><span class="msg" id="rf-msg"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Refunds Log</h2><span class="hint">Flows straight into the P&amp;L above</span></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="refund-tbl"></table></div></div></div>
+      </section>
+
+      <!-- VESSELS -->
+      <section class="view" id="view-vessels">
+        <div class="vhead"><div><h1>Vessels</h1><div class="sub">Each vessel is identified by its Hull Identification Number (HIN), the marine equivalent of a VIN, plus its state registration.</div></div></div>
+        <div class="card">
+          <div class="card-h"><h2>Add a Vessel</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="v-name">Vessel name</label><input type="text" id="v-name" placeholder="e.g. M/Y Coastal Star"></div>
+              <div class="f"><label for="v-hin">HIN</label><input type="text" id="v-hin" placeholder="12-char hull ID" maxlength="14"></div>
+              <div class="f"><label for="v-reg">State registration</label><input type="text" id="v-reg" placeholder="FL 0000 AA"></div>
+              <div class="f"><label for="v-owner">Owner</label><input type="text" id="v-owner" placeholder="Owner name (new or existing)"></div>
+              <div class="f"><label for="v-oemail">Owner email</label><input type="email" id="v-oemail" placeholder="owner@email.com"></div>
+              <div class="f"><label for="v-mgmt">Management fee (% of revenue)</label><input type="number" id="v-mgmt" value="20" min="0" max="100"></div>
+              <div class="f"><label for="v-share">Owner share (% after fee)</label><input type="number" id="v-share" value="70" min="0" max="100"></div>
+              <div class="f"><label for="v-capmode">Captain cost treatment</label><select id="v-capmode"><option value="service">Company service (not deducted from owner)</option><option value="expense">Charter cost (deducted from owner)</option></select></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="v-add">Add vessel</button><span class="msg" id="v-msg"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Fleet Register</h2><span class="hint" id="vessel-count"></span></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="vessel-tbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- VESSEL DETAIL -->
+      <section class="view" id="view-vdetail">
+        <button class="link" id="vd-back" style="margin-bottom:12px">&larr; All vessels</button>
+        <div class="vd-head" id="vd-head"></div>
+        <div class="kpis" id="vd-kpis"></div>
+        <div class="two">
+          <div class="card">
+            <div class="card-h"><h2>Charter Revenue</h2><span class="hint">Hours &times; rate</span></div>
+            <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="vd-charters"></table></div></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h2>Expenses</h2><span class="hint">With receipts</span></div>
+            <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="vd-expenses"></table></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Owner Distribution</h2></div>
+          <div class="card-b" id="vd-dist"></div>
+        </div>
+      </section>
+
+      <!-- CHARTERS -->
+      <section class="view" id="view-charters">
+        <div class="vhead"><div><h1>Charter Log</h1><div class="sub">Every charter is billed as hours rented at a per-hour rate. Revenue is the sum of these line items, not an average.</div></div></div>
+        <div class="card">
+          <div class="card-h"><h2>Record a Charter</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="c-vessel">Vessel</label><select id="c-vessel"></select></div>
+              <div class="f"><label for="c-date">Date</label><input type="date" id="c-date" value="2026-11-16"></div>
+              <div class="f"><label for="c-type">Charter type</label><select id="c-type"></select></div>
+              <div class="f"><label for="c-client">Client</label><input type="text" id="c-client" placeholder="e.g. Meridian Capital"></div>
+              <div class="f"><label for="c-hours">Hours rented</label><input type="number" id="c-hours" placeholder="0" min="0" step="0.5"></div>
+              <div class="f"><label for="c-rate">Rate per hour ($)</label><input type="number" id="c-rate" placeholder="0" min="0"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap">
+              <span class="calc">Charter total: <b id="c-preview">$0</b></span>
+              <button class="btn" id="c-add">Add charter</button>
+              <span class="msg" id="c-msg"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Charter Types</h2><span class="hint">Shown in the charter form and the reconciliation source</span></div>
+          <div class="card-b">
+            <div id="type-chips" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px"></div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+              <input type="text" id="ct-new" placeholder="New charter type" style="font-family:inherit; font-size:13px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px 9px; max-width:240px">
+              <button class="btn" id="ct-add">Add type</button>
+              <span class="msg" id="ct-msg"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Logged Charters</h2></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="charter-tbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- EXPENSES -->
+      <section class="view" id="view-expenses">
+        <div class="vhead"><div><h1>Expense Log</h1><div class="sub">Log a vessel expense, flag it reimbursable, and attach the receipt that backs it on the owner report.</div></div></div>
+        <div class="card">
+          <div class="card-h"><h2>Record an Expense</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="e-vessel">Vessel</label><select id="e-vessel"></select></div>
+              <div class="f"><label for="e-date">Date</label><input type="date" id="e-date" value="2026-11-16"></div>
+              <div class="f"><label for="e-cat">Category</label><select id="e-cat"><option>Fuel</option><option>Crew / captain</option><option>Maintenance</option><option>Dockage</option><option>Provisioning</option><option>Cleaning</option><option>Insurance</option><option>Other</option></select></div>
+              <div class="f"><label for="e-vendor">Vendor</label><input type="text" id="e-vendor" placeholder="e.g. Marina Fuel Dock"></div>
+              <div class="f"><label for="e-amt">Amount ($)</label><input type="number" id="e-amt" placeholder="0" min="0"></div>
+              <label class="inline-check"><input type="checkbox" id="e-reimb" checked> Owner reimburses</label>
+              <div class="f full"><label>Receipt / supporting document</label>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+                  <label class="file" for="e-file"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Attach receipt</label>
+                  <input type="file" id="e-file" accept="image/*,.pdf"><span class="fname" id="e-fname">No file chosen</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap">
+              <button class="btn" id="e-add">Add expense</button><span class="msg" id="e-msg"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Logged Expenses</h2></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="expense-tbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- PAYROLL -->
+      <section class="view" id="view-payroll">
+        <div class="vhead">
+          <div><h1>Weekly Payroll</h1><div class="sub">Captain and contractor pay run for the selected week, verified and batched for approval.</div></div>
+          <div class="seg" id="week-seg"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Add to Pay Run</h2><span class="hint">Adds a contractor line to the selected week</span></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="p-name">Name</label><input type="text" id="p-name" placeholder="e.g. Capt. A. Rivera"></div>
+              <div class="f"><label for="p-role">Role</label><input type="text" id="p-role" placeholder="e.g. Captain"></div>
+              <div class="f"><label for="p-assign">Assignment</label><input type="text" id="p-assign" placeholder="Vessel or division"></div>
+              <div class="f"><label for="p-type">Type</label><select id="p-type"><option>Contract</option><option>Hourly</option></select></div>
+              <div class="f"><label for="p-hours">Hours (if hourly)</label><input type="number" id="p-hours" placeholder="0" min="0"></div>
+              <div class="f"><label for="p-rate">Rate (if hourly)</label><input type="number" id="p-rate" placeholder="0" min="0"></div>
+              <div class="f"><label for="p-amt">Amount ($, if flat)</label><input type="number" id="p-amt" placeholder="0" min="0"></div>
+              <div class="f" style="align-self:flex-end"><button class="btn" id="p-add">Add pay line</button></div>
+            </div>
+            <div style="margin-top:12px"><span class="msg" id="p-msg"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Pay Run for week ending <span id="wk-label"></span></h2><span class="hint" id="wk-total"></span></div>
+          <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="payroll-tbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- OWNER REPORTS -->
+      <section class="view" id="view-owners">
+        <div class="vhead">
+          <div><h1>Owner Reports</h1><div class="sub">A consolidated monthly report per owner: each vessel's revenue, reimbursable expenses, management fee, revenue share, and the net amount due, with receipts attached.</div></div>
+          <div class="f" style="min-width:220px"><label for="o-owner">Owner</label><select id="o-owner"></select></div>
+        </div>
+        <div id="owner-report"></div>
+      </section>
+
+      <!-- MEMBERSHIP -->
+      <section class="view" id="view-membership">
+        <div class="vhead"><div><h1>Yacht Club Membership</h1><div class="sub">Recurring membership dues. Each membership is billed on its own cycle (monthly, quarterly, semi-annual, or annual) and recognized evenly across that term, not booked in full at billing.</div></div></div>
+        <div class="kpis" id="m-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Enroll a Member</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="m-name">Member</label><input type="text" id="m-name" placeholder="e.g. A. Whitfield"></div>
+              <div class="f"><label for="m-email">Email</label><input type="email" id="m-email" placeholder="member@email.com"></div>
+              <div class="f"><label for="m-tier">Tier</label><select id="m-tier"><option>Classic</option><option>Signature</option><option>Corporate</option></select></div>
+              <div class="f"><label for="m-cycle">Billing cycle</label><select id="m-cycle"><option>Monthly</option><option>Quarterly</option><option>Semi-annual</option><option selected>Annual</option></select></div>
+              <div class="f"><label for="m-amt">Amount per cycle ($)</label><input type="number" id="m-amt" placeholder="0" min="0"></div>
+              <div class="f"><label for="m-next">Next bill date</label><input type="date" id="m-next" value="2026-12-01"></div>
+              <div class="f" style="justify-content:flex-end"><span class="calc">Recognized / mo: <b id="m-prev">$0</b></span></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="m-add">Add membership</button><span class="msg" id="m-msg"></span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Members</h2><span class="hint">Dues recognized over each member's term</span></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="member-tbl"></table></div></div></div>
+        <div class="card"><div class="card-h"><h2>Renewal Reminders</h2><span class="hint">Memberships due within 45 days. Send an email reminder before they lapse.</span></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="reminder-tbl"></table></div></div></div>
+      </section>
+
+      <!-- SAILING -->
+      <section class="view" id="view-sailing">
+        <div class="vhead"><div><h1>Sailing Education</h1><div class="sub">Course and certification revenue. Edit a seat count or price inline and revenue updates. Add or remove courses as the term changes.</div></div></div>
+        <div class="kpis" id="sail-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Add a Course</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="co-name">Course</label><input type="text" id="co-name" placeholder="e.g. ASA 104: Bareboat Cruising"></div>
+              <div class="f"><label for="co-inst">Instructor</label><input type="text" id="co-inst" placeholder="Instructor name"></div>
+              <div class="f"><label for="co-seats">Seats</label><input type="number" id="co-seats" placeholder="0" min="0"></div>
+              <div class="f"><label for="co-fee">Fee per seat ($)</label><input type="number" id="co-fee" placeholder="0" min="0"></div>
+              <div class="f"><label for="co-start">Start date</label><input type="date" id="co-start" value="2026-12-01"></div>
+              <div class="f"><label for="co-status">Status</label><select id="co-status"><option>Enrolling</option><option>Scheduled</option><option>In progress</option></select></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="co-add">Add course</button><span class="msg" id="co-msg"></span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Courses &amp; Certifications</h2><span class="hint">Seats and fee are editable inline</span></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="sail-tbl"></table></div></div></div>
+      </section>
+
+      <!-- CAPTAINS -->
+      <section class="view" id="view-captains">
+        <div class="vhead"><div><h1>Captain Hiring</h1><div class="sub">Licensed captain roster and placements. The company bills a day rate, pays the captain, and keeps the margin.</div></div></div>
+        <div class="kpis" id="cap-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Add a Captain</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="cap-name">Captain</label><input type="text" id="cap-name" placeholder="e.g. Capt. A. Rivera"></div>
+              <div class="f"><label for="cap-lic">USCG license</label><input type="text" id="cap-lic" placeholder="e.g. USCG Master 100 GT"></div>
+              <div class="f"><label for="cap-status">Status</label><select id="cap-status"><option>Available</option><option>Assigned</option></select></div>
+              <div class="f"><label for="cap-assign">Assignment</label><input type="text" id="cap-assign" placeholder="Vessel or Unassigned"></div>
+              <div class="f"><label for="cap-bill">Bill / day ($)</label><input type="number" id="cap-bill" placeholder="0" min="0"></div>
+              <div class="f"><label for="cap-pay">Pay / day ($)</label><input type="number" id="cap-pay" placeholder="0" min="0"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="cap-add">Add captain</button><span class="msg" id="cap-msg"></span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Captain Roster</h2></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="cap-tbl"></table></div></div></div>
+      </section>
+
+      <!-- BROKERAGE -->
+      <section class="view" id="view-brokerage">
+        <div class="vhead"><div><h1>Brokerage</h1><div class="sub">Yacht sales, commission based. Launching Q1 2027. Pipeline and commission tracking are configured ahead of go-live.</div></div></div>
+        <div class="alert" style="margin:0 0 16px; background:var(--accent-soft); color:var(--accent)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg><span><b>Upcoming division.</b> Figures below are projected pipeline, not booked revenue.</span></div>
+        <div class="kpis" id="brk-kpis"></div>
+        <div class="card"><div class="card-h"><h2>Listings Pipeline</h2></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="brk-tbl"></table></div></div></div>
+      </section>
+
+      <!-- RECONCILIATION -->
+      <section class="view" id="view-recon">
+        <div class="vhead"><div><h1>Revenue Reconciliation</h1><div class="sub">Each booking should land in the bank as the booked amount minus the processor fee. Anything that does not tie out is flagged to review.</div></div></div>
+        <div class="kpis" id="rec-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Add a Transaction</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="r-date">Date</label><input type="date" id="r-date" value="2026-11-20"></div>
+              <div class="f"><label for="r-src">Source</label><select id="r-src"></select></div>
+              <div class="f"><label for="r-proc">Processor / method</label><select id="r-proc"><option>Stripe</option><option>PayPal</option><option>Square</option><option>Website</option><option>ACH</option><option>Zelle</option><option>Cash / check</option></select></div>
+              <div class="f"><label for="r-booked">Booked amount ($)</label><input type="number" id="r-booked" placeholder="0" min="0"></div>
+              <div class="f"><label for="r-fee">Processor fee ($)</label><input type="number" id="r-fee" placeholder="0" min="0"></div>
+              <div class="f"><label for="r-bank">Bank deposit ($, blank if pending)</label><input type="number" id="r-bank" placeholder="0" min="0"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="r-add">Add transaction</button><span class="msg" id="r-msg"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Import from Processor</h2><span class="hint">Match a processor payout report to your logs, then approve</span></div>
+          <div class="card-b">
+            <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px">
+              <div class="f" style="min-width:190px; flex:0 0 auto"><label for="imp-proc">Processor</label><select id="imp-proc"><option>Stripe</option><option>Square</option><option>PayPal</option><option>ACH</option><option>Zelle</option><option>Website</option></select></div>
+              <button class="btn ghost" id="imp-load">Load report</button>
+              <button class="btn" id="imp-approve-all">Approve all matched</button>
+            </div>
+            <div class="note" style="margin-bottom:10px">The importer matches each payout to a logged charter by amount and date. <b>Nothing posts to the ledger until you approve it.</b></div>
+            <div class="tbl-wrap"><table class="t" id="imp-tbl"></table></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Booking to Bank</h2></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="recon-tbl"></table></div></div></div>
+      </section>
+
+      <!-- CLOSE -->
+      <section class="view" id="view-close">
+        <div class="vhead"><div><h1>Month-End Close</h1><div class="sub">A documented close procedure, ready to hand to the external accountant.</div></div></div>
+        <div class="card">
+          <div class="card-h"><h2>Close Checklist</h2><span class="hint"><span id="close-pct">0</span>% complete</span></div>
+          <div class="card-b flush" style="padding-top:12px"><div class="bar"><span id="close-bar"></span></div><div class="steps" id="close-steps"></div></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-c">
+    <div class="modal-h"><span class="t" id="modal-t">Receipt</span><button class="modal-x" id="modal-x" aria-label="Close">&times;</button></div>
+    <div class="modal-b" id="modal-b"></div>
+  </div>
+</div>
+
+<script>
+  var $ = function(id){ return document.getElementById(id); };
+  var money = function(n){ var neg=n<0; var s=Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); return neg?"($"+s+")":"$"+s; };
+  var esc = function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
+  var r1 = function(n){ return Math.round(n*10)/10; };
+
+  function receiptSVG(vendor, amount, date){
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="396" viewBox="0 0 300 396">'
+      + '<rect width="300" height="396" fill="#ffffff"/><rect width="300" height="8" fill="#2b57d6"/>'
+      + '<text x="22" y="48" fill="#101828" font-family="Arial" font-size="18" font-weight="bold">'+esc(vendor)+'</text>'
+      + '<text x="22" y="68" fill="#667085" font-family="Arial" font-size="11">Marine services · Gulf Coast, FL</text>'
+      + '<text x="278" y="48" fill="#667085" font-family="Arial" font-size="11" text-anchor="end">'+esc(date)+'</text>'
+      + '<line x1="22" y1="86" x2="278" y2="86" stroke="#e4e7ec"/>'
+      + '<text x="22" y="118" fill="#344054" font-family="Arial" font-size="12">Service / supply</text>'
+      + '<text x="278" y="118" fill="#101828" font-family="Arial" font-size="12" text-anchor="end">'+money(amount*0.86)+'</text>'
+      + '<text x="22" y="142" fill="#344054" font-family="Arial" font-size="12">Taxes &amp; fees</text>'
+      + '<text x="278" y="142" fill="#101828" font-family="Arial" font-size="12" text-anchor="end">'+money(amount*0.14)+'</text>'
+      + '<line x1="22" y1="164" x2="278" y2="164" stroke="#e4e7ec"/>'
+      + '<text x="22" y="194" fill="#101828" font-family="Arial" font-size="13" font-weight="bold">TOTAL</text>'
+      + '<text x="278" y="194" fill="#101828" font-family="Arial" font-size="17" font-weight="bold" text-anchor="end">'+money(amount)+'</text>'
+      + '<rect x="22" y="300" width="256" height="58" rx="5" fill="#f4f6f8"/>'
+      + '<text x="150" y="326" fill="#98a2b3" font-family="Arial" font-size="10" text-anchor="middle">PAID · card ending 4417</text>'
+      + '<text x="150" y="344" fill="#c0c6cf" font-family="Arial" font-size="9" text-anchor="middle">Sample supporting document</text></svg>';
+    return "data:image/svg+xml,"+encodeURIComponent(s);
+  }
+
+  // ----- data -----
+  var owners = [
+    {id:"o1", name:"R. Castellano", email:"r.castellano@example.com"}, {id:"o2", name:"The Hartwell Trust", email:"office@hartwelltrust.example.com"},
+    {id:"o3", name:"D. Okafor", email:"d.okafor@example.com"}, {id:"o4", name:"Coastline Holdings", email:"ops@coastlineholdings.example.com"}
+  ];
+  var vessels = [
+    {id:"gs", name:"M/Y Gulf Serenity", hin:"SRNX48A2K324", reg:"FL 7421 KM", ownerId:"o1", mgmt:20, ownerPct:70, capMode:"service", status:"Active"},
+    {id:"ab", name:"S/Y Aurora Belle",  hin:"AURB5519L425", reg:"FL 3380 RA", ownerId:"o2", mgmt:20, ownerPct:70, capMode:"service", status:"Active"},
+    {id:"sp", name:"M/Y Sanibel Pearl", hin:"SANP1174M126", reg:"FL 1174 DP", ownerId:"o3", mgmt:18, ownerPct:72, capMode:"service", status:"Active"},
+    {id:"mb", name:"M/Y Mirabel",       hin:"MIRA6033J524", reg:"FL 6033 CH", ownerId:"o4", mgmt:20, ownerPct:65, capMode:"expense", status:"Active"}
+  ];
+  var cid = 1;
+  var charters = [
+    {id:cid++, vesselId:"gs", date:"2026-11-04", ctype:"Corporate outing", client:"Meridian Capital",  hours:6, rate:900},
+    {id:cid++, vesselId:"gs", date:"2026-11-09", ctype:"Sunset cruise",    client:"Hargrove (private)", hours:3, rate:700},
+    {id:cid++, vesselId:"gs", date:"2026-11-14", ctype:"Celebration",      client:"Delgado 40th",       hours:5, rate:780},
+    {id:cid++, vesselId:"gs", date:"2026-11-20", ctype:"Full-day escape",  client:"Pierce Family",      hours:8, rate:720},
+    {id:cid++, vesselId:"gs", date:"2026-11-24", ctype:"Corporate outing", client:"Atwater Group",      hours:6, rate:880},
+    {id:cid++, vesselId:"ab", date:"2026-11-06", ctype:"Full-day escape",  client:"Lang Group",         hours:8, rate:1100},
+    {id:cid++, vesselId:"ab", date:"2026-11-12", ctype:"Celebration",      client:"Okonkwo Wedding",    hours:5, rate:980},
+    {id:cid++, vesselId:"ab", date:"2026-11-18", ctype:"Sunset cruise",    client:"Bessette (private)", hours:3, rate:900},
+    {id:cid++, vesselId:"sp", date:"2026-11-03", ctype:"Sunset cruise",    client:"Walk-in",            hours:3, rate:500},
+    {id:cid++, vesselId:"sp", date:"2026-11-07", ctype:"Half-day charter", client:"Vantage Corp",       hours:4, rate:650},
+    {id:cid++, vesselId:"sp", date:"2026-11-10", ctype:"Celebration",      client:"Reyes Party",        hours:4, rate:600},
+    {id:cid++, vesselId:"sp", date:"2026-11-13", ctype:"Sunset cruise",    client:"Private",            hours:3, rate:520},
+    {id:cid++, vesselId:"sp", date:"2026-11-17", ctype:"Full-day escape",  client:"Doyle Charter",      hours:8, rate:560},
+    {id:cid++, vesselId:"sp", date:"2026-11-21", ctype:"Corporate outing", client:"Summit LLC",         hours:6, rate:600},
+    {id:cid++, vesselId:"mb", date:"2026-11-05", ctype:"Sunset cruise",    client:"Private",            hours:3, rate:600},
+    {id:cid++, vesselId:"mb", date:"2026-11-11", ctype:"Half-day charter", client:"Cole Anniversary",   hours:4, rate:650},
+    {id:cid++, vesselId:"mb", date:"2026-11-16", ctype:"Full-day escape",  client:"Nkemdirim Family",   hours:8, rate:625},
+    {id:cid++, vesselId:"mb", date:"2026-11-22", ctype:"Celebration",      client:"Soto Graduation",    hours:5, rate:620}
+  ];
+  var eid = 1;
+  var expenses = [
+    {id:eid++, vesselId:"gs", date:"2026-11-04", cat:"Fuel",          vendor:"Marina Fuel Dock",      amt:2400, reimb:true,  rc:receiptSVG("Marina Fuel Dock",2400,"Nov 4, 2026"), rcName:"fuel.svg", rcImg:true},
+    {id:eid++, vesselId:"gs", date:"2026-11-06", cat:"Crew / captain", vendor:"Capt. J. Mercer",      amt:3200, reimb:false, rc:null},
+    {id:eid++, vesselId:"gs", date:"2026-11-09", cat:"Maintenance",   vendor:"Reliant Marine Repair", amt:1500, reimb:true,  rc:receiptSVG("Reliant Marine Repair",1500,"Nov 9, 2026"), rcName:"repair.svg", rcImg:true},
+    {id:eid++, vesselId:"gs", date:"2026-11-11", cat:"Cleaning",      vendor:"BlueWave Detailing",    amt:900,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"gs", date:"2026-11-12", cat:"Provisioning",  vendor:"Gulf Provisions Co.",   amt:700,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"gs", date:"2026-11-14", cat:"Dockage",       vendor:"Sarasota Bay Marina",   amt:600,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"ab", date:"2026-11-05", cat:"Fuel",          vendor:"Marina Fuel Dock",      amt:1800, reimb:true,  rc:null},
+    {id:eid++, vesselId:"ab", date:"2026-11-08", cat:"Crew / captain", vendor:"Capt. P. Nolan",       amt:2600, reimb:false, rc:null},
+    {id:eid++, vesselId:"ab", date:"2026-11-10", cat:"Maintenance",   vendor:"Reliant Marine Repair", amt:4900, reimb:true,  rc:receiptSVG("Reliant Marine Repair",4900,"Nov 10, 2026"), rcName:"engine.svg", rcImg:true},
+    {id:eid++, vesselId:"ab", date:"2026-11-13", cat:"Dockage",       vendor:"Sarasota Bay Marina",   amt:700,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"sp", date:"2026-11-03", cat:"Fuel",          vendor:"Marina Fuel Dock",      amt:2100, reimb:true,  rc:null},
+    {id:eid++, vesselId:"sp", date:"2026-11-07", cat:"Crew / captain", vendor:"Capt. L. Okafor",      amt:3400, reimb:false, rc:null},
+    {id:eid++, vesselId:"sp", date:"2026-11-11", cat:"Cleaning",      vendor:"BlueWave Detailing",    amt:800,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"sp", date:"2026-11-15", cat:"Dockage",       vendor:"Naples City Dock",      amt:650,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"mb", date:"2026-11-06", cat:"Fuel",          vendor:"Marina Fuel Dock",      amt:1400, reimb:true,  rc:null},
+    {id:eid++, vesselId:"mb", date:"2026-11-09", cat:"Crew / captain", vendor:"Capt. R. Mensah",      amt:2000, reimb:false, rc:null},
+    {id:eid++, vesselId:"mb", date:"2026-11-12", cat:"Provisioning",  vendor:"Gulf Provisions Co.",   amt:500,  reimb:true,  rc:null},
+    {id:eid++, vesselId:"mb", date:"2026-11-14", cat:"Dockage",       vendor:"Sarasota Bay Marina",   amt:600,  reimb:true,  rc:null}
+  ];
+  var payWeeks = [
+    {ending:"Nov 7, 2026", lines:[
+      {name:"Capt. J. Mercer", role:"Captain", assign:"M/Y Gulf Serenity", type:"Contract", hours:null, rate:null, amt:800, status:"Paid"},
+      {name:"Capt. P. Nolan",  role:"Captain", assign:"S/Y Aurora Belle",  type:"Contract", hours:null, rate:null, amt:950, status:"Paid"},
+      {name:"Capt. L. Okafor", role:"Captain", assign:"M/Y Sanibel Pearl", type:"Contract", hours:null, rate:null, amt:850, status:"Paid"},
+      {name:"M. Alvarez",      role:"Deckhand", assign:"Fleet relief",     type:"Hourly",   hours:24, rate:28, amt:672, status:"Paid"},
+      {name:"S. Delgado",      role:"Instructor", assign:"Sailing School", type:"Contract", hours:null, rate:null, amt:450, status:"Paid"}
+    ]},
+    {ending:"Nov 14, 2026", lines:[
+      {name:"Capt. J. Mercer", role:"Captain", assign:"M/Y Gulf Serenity", type:"Contract", hours:null, rate:null, amt:800, status:"Paid"},
+      {name:"Capt. P. Nolan",  role:"Captain", assign:"S/Y Aurora Belle",  type:"Contract", hours:null, rate:null, amt:950, status:"Paid"},
+      {name:"Capt. R. Mensah", role:"Captain", assign:"M/Y Mirabel",       type:"Contract", hours:null, rate:null, amt:700, status:"Paid"},
+      {name:"M. Alvarez",      role:"Deckhand", assign:"Fleet relief",     type:"Hourly",   hours:22, rate:28, amt:616, status:"Paid"},
+      {name:"S. Delgado",      role:"Instructor", assign:"Sailing School", type:"Contract", hours:null, rate:null, amt:540, status:"Paid"}
+    ]},
+    {ending:"Nov 21, 2026", lines:[
+      {name:"Capt. J. Mercer", role:"Captain", assign:"M/Y Gulf Serenity", type:"Contract", hours:null, rate:null, amt:800, status:"Approved"},
+      {name:"Capt. L. Okafor", role:"Captain", assign:"M/Y Sanibel Pearl", type:"Contract", hours:null, rate:null, amt:850, status:"Approved"},
+      {name:"Capt. R. Mensah", role:"Captain", assign:"M/Y Mirabel",       type:"Contract", hours:null, rate:null, amt:700, status:"Pending"},
+      {name:"M. Alvarez",      role:"Deckhand", assign:"Fleet relief",     type:"Hourly",   hours:26, rate:28, amt:728, status:"Pending"},
+      {name:"S. Delgado",      role:"Instructor", assign:"Sailing School", type:"Contract", hours:null, rate:null, amt:450, status:"Pending"}
+    ]}
+  ];
+  var processors = {
+    "Stripe":{pct:2.9,flat:0.30}, "PayPal":{pct:3.49,flat:0.49}, "Square":{pct:2.6,flat:0.10},
+    "Website":{pct:2.9,flat:0.30}, "ACH":{pct:0.8,flat:0,cap:5}, "Zelle":{pct:0,flat:0}, "Cash / check":{pct:0,flat:0}
+  };
+  function estFee(proc, amt){ var p=processors[proc]; if(!p||!amt) return 0; var f=amt*p.pct/100+p.flat; if(p.cap) f=Math.min(f,p.cap); return Math.round(f*100)/100; }
+  var rseq=1;
+  var recon = [
+    {id:rseq++, date:"2026-11-03", src:"Private charter",     proc:"Stripe", booked:3000, fee:87.30,  bank:2912.70},
+    {id:rseq++, date:"2026-11-07", src:"Sunset cruise",       proc:"Square", booked:1200, fee:31.30,  bank:1168.70},
+    {id:rseq++, date:"2026-11-10", src:"Corporate outing",    proc:"PayPal", booked:5400, fee:188.95, bank:0},
+    {id:rseq++, date:"2026-11-14", src:"Membership dues",     proc:"ACH",    booked:2900, fee:5.00,    bank:2895.00},
+    {id:rseq++, date:"2026-11-18", src:"Celebration charter", proc:"Zelle",  booked:1800, fee:0.00,    bank:1751.00}
+  ];
+  var steps = [
+    {lab:"Reconcile all vessel bank and card accounts", done:true},
+    {lab:"Record charters and log all vessel expenses with receipts", done:true},
+    {lab:"Match booking revenue to processor settlements and bank deposits", done:false},
+    {lab:"Review per-vessel P&L and flag unusual expenses", done:false},
+    {lab:"Prepare and approve owner reports", done:false},
+    {lab:"Process weekly payroll and contractor payments", done:false},
+    {lab:"Package month-end file for external accountant", done:false}
+  ];
+  var rfid=1;
+  var refunds = [
+    {id:rfid++, date:"2026-11-12", division:"Charter", proc:"Stripe", amt:700, reason:"Weather cancellation, partial refund"}
+  ];
+  var overhead = [
+    {item:"Office &amp; dock lease", amt:3200},
+    {item:"Fleet &amp; liability insurance", amt:2800},
+    {item:"Software &amp; subscriptions", amt:720},
+    {item:"Marketing &amp; web", amt:950}
+  ];
+
+  // ----- lookups / calcs -----
+  function vessel(id){ for(var i=0;i<vessels.length;i++) if(vessels[i].id===id) return vessels[i]; }
+  function owner(id){ for(var i=0;i<owners.length;i++) if(owners[i].id===id) return owners[i]; }
+  function ownerName(v){ var o=owner(v.ownerId); return o?o.name:""; }
+  function vCharters(id){ return charters.filter(function(c){ return c.vesselId===id; }); }
+  function vExpenses(id){ return expenses.filter(function(e){ return e.vesselId===id; }); }
+  function vRevenue(id){ return vCharters(id).reduce(function(s,c){ return s+c.hours*c.rate; },0); }
+  function vExpTotal(id){ return vExpenses(id).reduce(function(s,e){ return s+e.amt; },0); }
+  function vCaptExp(id){ return vExpenses(id).reduce(function(s,e){ return s+(e.cat==="Crew / captain"?e.amt:0); },0); }
+  function vOpExp(id){ return vExpenses(id).reduce(function(s,e){ return s+(e.cat==="Crew / captain"?0:e.amt); },0); }
+  function vCalc(v){
+    var gross=vRevenue(v.id), opExp=vOpExp(v.id), capExp=vCaptExp(v.id);
+    var mode=(v.capMode==="expense")?"expense":"service";
+    var capDeducted=(mode==="expense")?capExp:0;
+    var exp=opExp+capDeducted, net=gross-exp;
+    var mgmtFee=gross*v.mgmt/100, dist=net-mgmtFee;
+    var ownerShare=dist*v.ownerPct/100, coShare=dist*(100-v.ownerPct)/100;
+    return {gross:gross, exp:exp, opExp:opExp, capExp:capExp, capDeducted:capDeducted, capMode:mode, net:net, mgmtFee:mgmtFee, dist:dist, ownerShare:ownerShare, coShare:coShare, coTotal:mgmtFee+coShare, ratio: gross>0?exp/gross*100:0, charters:vCharters(v.id).length};
+  }
+  function statusTag(s){
+    var k = s==="Paid"||s==="Matched"?"good":(s==="Pending"||s==="Variance"?"warn":(s==="Unmatched"?"bad":(s==="Approved"?"acc":"mut")));
+    return '<span class="tag '+k+'">'+esc(s)+'</span>';
+  }
+
+  // ----- dashboard -----
+  function renderDash(){
+    var rev=0, exp=0, pay=0;
+    vessels.forEach(function(v){ var c=vCalc(v); rev+=c.gross; exp+=c.exp; pay+=c.ownerShare; });
+    $("kpis").innerHTML = [
+      {k:"Charter revenue", v:money(rev), d:vessels.length+" vessels &middot; Nov MTD"},
+      {k:"Operating expenses", v:money(exp), d:"Logged across fleet"},
+      {k:"Net income", v:money(rev-exp), d:"Before owner distribution"},
+      {k:"Owner payouts due", v:money(pay), d:"This period"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
+
+    var rows='<tr><th>Vessel</th><th>HIN</th><th>Owner</th><th class="r">Charters</th><th class="r">Revenue</th><th class="r">Expenses</th><th class="r">Owner payout</th><th>Status</th></tr>';
+    var flags=[];
+    vessels.forEach(function(v){
+      var c=vCalc(v), flg=c.ratio>50;
+      if(flg) flags.push(v.name+" ("+r1(c.ratio)+"% expense ratio)");
+      rows+='<tr class="clickable" data-vid="'+v.id+'"><td class="strong">'+esc(v.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(v.hin)+'</td><td>'+esc(ownerName(v))+'</td>'
+        +'<td class="r num">'+c.charters+'</td><td class="r num">'+money(c.gross)+'</td><td class="r num">'+money(c.exp)+'</td><td class="r num strong">'+money(c.ownerShare)+'</td>'
+        +'<td>'+(flg?'<span class="tag warn">Review</span>':'<span class="tag good">On track</span>')+'</td></tr>';
+    });
+    $("dash-pnl").innerHTML=rows;
+    $("dash-pnl").querySelectorAll("tr.clickable").forEach(function(tr){ tr.addEventListener("click", function(){ showVessel(tr.getAttribute("data-vid")); }); });
+    $("dash-alert").innerHTML = flags.length
+      ? '<div class="alert"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0z"/></svg><span><b>Unusual expense flag.</b> '+esc(flags.join("; "))+'. Review before approving owner reports.</span></div>'
+      : '';
+    renderDivisions();
+  }
+
+  // ----- vessels list + detail -----
+  function renderVessels(){
+    $("vessel-count").textContent = vessels.length+" active vessels";
+    var rows='<tr><th>Vessel</th><th>HIN</th><th>State reg.</th><th>Owner</th><th>Fee / Split</th><th>Status</th><th></th></tr>';
+    vessels.forEach(function(v){
+      rows+='<tr class="clickable" data-vid="'+v.id+'"><td class="strong">'+esc(v.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(v.hin)+'</td>'
+        +'<td class="mono" style="font-size:11.5px">'+esc(v.reg)+'</td><td>'+esc(ownerName(v))+'</td>'
+        +'<td class="num">'+v.mgmt+'% &middot; '+v.ownerPct+'/'+(100-v.ownerPct)+' <span class="tag mut" style="margin-left:4px">Capt: '+((v.capMode==="expense")?"owner":"company")+'</span></td><td><span class="tag good">'+esc(v.status)+'</span></td>'
+        +'<td class="r"><span class="link">Open &rarr;</span></td></tr>';
+    });
+    $("vessel-tbl").innerHTML=rows;
+    $("vessel-tbl").querySelectorAll("tr.clickable").forEach(function(tr){ tr.addEventListener("click", function(){ showVessel(tr.getAttribute("data-vid")); }); });
+  }
+
+  var curVid=null;
+  function showVessel(id){ curVid=id; renderVesselDetail(id); activate("vdetail","vessels"); window.scrollTo(0,0); }
+  function setCapMode(id, mode){ var v=vessel(id); if(!v) return; v.capMode=mode; renderVesselDetail(id); renderDash(); renderOwner(); renderDivisions(); renderVessels(); }
+  function renderVesselDetail(id){
+    var v=vessel(id); if(!v) return; var c=vCalc(v); var svc=(c.capMode==="service");
+    $("vd-head").innerHTML = '<div><h1 style="font-size:18px; margin:0">'+esc(v.name)+'</h1>'
+      + '<div class="vd-id"><span>HIN <b class="mono">'+esc(v.hin)+'</b></span><span>Reg <b class="mono">'+esc(v.reg)+'</b></span><span>Owner <b>'+esc(ownerName(v))+'</b></span><span>Terms <b>'+v.mgmt+'% fee &middot; '+v.ownerPct+'/'+(100-v.ownerPct)+' owner/co split</b></span></div></div>'
+      + '<span class="tag '+(c.ratio>50?"warn":"good")+'">'+(c.ratio>50?"Review":"On track")+'</span>';
+
+    $("vd-kpis").innerHTML = [
+      {k:"Charter revenue", v:money(c.gross)}, {k:"Expenses", v:money(c.exp)},
+      {k:"Net income", v:money(c.net)}, {k:"Owner payout", v:money(c.ownerShare)}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+
+    var cr='<tr><th>Date</th><th>Type</th><th>Client</th><th class="r">Hrs</th><th class="r">Rate</th><th class="r">Amount</th></tr>';
+    vCharters(id).forEach(function(c2){ cr+='<tr><td>'+esc(c2.date)+'</td><td>'+esc(c2.ctype)+'</td><td>'+esc(c2.client)+'</td><td class="r num">'+c2.hours+'</td><td class="r num">'+money(c2.rate)+'</td><td class="r num strong">'+money(c2.hours*c2.rate)+'</td></tr>'; });
+    cr+='<tr><td colspan="5" class="strong">Total charter revenue</td><td class="r num strong">'+money(c.gross)+'</td></tr>';
+    $("vd-charters").innerHTML=cr;
+
+    var ex='<tr><th>Date</th><th>Category</th><th class="r">Amount</th><th>Receipt</th></tr>';
+    vExpenses(id).forEach(function(e){
+      var isCap=e.cat==="Crew / captain";
+      var tag=(isCap&&svc)?' <span class="tag mut" style="margin-left:4px">company service</span>':'';
+      ex+='<tr><td>'+esc(e.date)+'</td><td>'+esc(e.cat)+tag+'</td><td class="r num">'+money(e.amt)+'</td><td>'+receiptCell(e)+'</td></tr>';
+    });
+    ex+='<tr><td colspan="2" class="strong">Deductible to owner</td><td class="r num strong">'+money(c.exp)+'</td><td></td></tr>';
+    $("vd-expenses").innerHTML=ex;
+    bindReceipts($("vd-expenses"));
+
+    var capCtrl='<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--line2)">'
+      +'<div style="max-width:58ch"><div style="font-size:12px; font-weight:600; color:var(--ink)">Captain cost treatment</div>'
+      +'<div class="note" style="margin-top:2px">'+(svc?'Billed as a company service. The '+money(c.capExp)+' captain cost is <b>not</b> deducted from this owner.':'Treated as a charter cost. The '+money(c.capExp)+' captain cost <b>is</b> deducted from this owner.')+'</div></div>'
+      +'<div class="seg"><button class="'+(svc?'on':'')+'" onclick="setCapMode(\''+v.id+'\',\'service\')">Company service</button><button class="'+(!svc?'on':'')+'" onclick="setCapMode(\''+v.id+'\',\'expense\')">Charter cost</button></div></div>';
+
+    var capLine=svc?'':'<div class="sr ded"><span class="l">Less: captain fees (charter cost)</span><span class="v">'+money(-c.capExp)+'</span></div>';
+    var svcNote=(svc&&c.capExp>0)?'<div class="note" style="margin-top:10px">Captain fees of '+money(c.capExp)+' this period are billed as a company service and sit in the Captains division, so they are not charged against this owner.</div>':'';
+
+    $("vd-dist").innerHTML = capCtrl
+      +'<div class="sr"><span class="l">Gross charter revenue</span><span class="v">'+money(c.gross)+'</span></div>'
+      +'<div class="sr"><span class="l">Less: operating expenses</span><span class="v">'+money(-c.opExp)+'</span></div>'
+      +capLine
+      +'<div class="sr tot"><span class="l">Net charter income</span><span class="v">'+money(c.net)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Less: management fee ('+v.mgmt+'%)</span><span class="v">'+money(-c.mgmtFee)+'</span></div>'
+      +'<div class="sr tot"><span class="l">Distributable income</span><span class="v">'+money(c.dist)+'</span></div>'
+      +'<div class="sr ind"><span class="l">Owner share ('+v.ownerPct+'%)</span><span class="v">'+money(c.ownerShare)+'</span></div>'
+      +'<div class="sr ind"><span class="l">Company share ('+(100-v.ownerPct)+'%)</span><span class="v">'+money(c.coShare)+'</span></div>'
+      +'<div class="payout"><span class="k">Owner net payout</span><span class="v num">'+money(c.ownerShare)+'</span></div>'
+      +svcNote;
+  }
+
+  function receiptCell(e){
+    if(!e.rc) return '<span class="none">None</span>';
+    var inner = e.rcImg ? '<img src="'+e.rc+'" alt="">' : '<span class="doc">PDF</span>';
+    return '<span class="rc" data-rid="'+e.id+'">'+inner+'<span>View</span></span>';
+  }
+  function bindReceipts(root){ root.querySelectorAll(".rc").forEach(function(el){ el.addEventListener("click", function(){ openReceipt(parseInt(el.getAttribute("data-rid"),10)); }); }); }
+
+  // ----- charters -----
+  function initCharters(){
+    $("c-vessel").innerHTML = vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("");
+    function prev(){ var h=parseFloat($("c-hours").value)||0, r=parseFloat($("c-rate").value)||0; $("c-preview").textContent=money(h*r); }
+    $("c-hours").addEventListener("input", prev); $("c-rate").addEventListener("input", prev);
+    $("c-add").addEventListener("click", function(){
+      var h=parseFloat($("c-hours").value), r=parseFloat($("c-rate").value), cl=$("c-client").value.trim();
+      if(isNaN(h)||h<=0||isNaN(r)||r<=0||!cl){ $("c-msg").style.color="var(--bad)"; $("c-msg").textContent="Enter client, hours, and rate above zero."; return; }
+      charters.push({id:cid++, vesselId:$("c-vessel").value, date:$("c-date").value||"2026-11-16", ctype:$("c-type").value, client:cl, hours:h, rate:r});
+      $("c-client").value=""; $("c-hours").value=""; $("c-rate").value=""; $("c-preview").textContent="$0";
+      $("c-msg").style.color="var(--good)"; $("c-msg").textContent="Charter recorded. Revenue updated across the fleet.";
+      refreshAll();
+    });
+  }
+  function renderCharters(){
+    var rows='<tr><th>Date</th><th>Vessel</th><th>Type</th><th>Client</th><th class="r">Hours</th><th class="r">Rate/hr</th><th class="r">Amount</th></tr>';
+    charters.slice().sort(function(a,b){ return a.date<b.date?1:-1; }).forEach(function(c){
+      var v=vessel(c.vesselId);
+      rows+='<tr><td>'+esc(c.date)+'</td><td class="strong">'+esc(v?v.name:"")+'</td><td>'+esc(c.ctype)+'</td><td>'+esc(c.client)+'</td>'
+        +'<td class="r num">'+c.hours+'</td><td class="r num">'+money(c.rate)+'</td><td class="r num strong">'+money(c.hours*c.rate)+'</td></tr>';
+    });
+    $("charter-tbl").innerHTML=rows;
+  }
+
+  // ----- expenses -----
+  var pendingFile=null;
+  function initExpenses(){
+    $("e-vessel").innerHTML = vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("");
+    $("e-file").addEventListener("change", function(ev){
+      var f=ev.target.files[0]; if(!f){ pendingFile=null; $("e-fname").textContent="No file chosen"; return; }
+      $("e-fname").textContent=f.name; var rd=new FileReader(); rd.onload=function(){ pendingFile={data:rd.result, name:f.name, img:/^image\//.test(f.type)}; }; rd.readAsDataURL(f);
+    });
+    $("e-add").addEventListener("click", function(){
+      var a=parseFloat($("e-amt").value), vn=$("e-vendor").value.trim();
+      if(isNaN(a)||a<=0||!vn){ $("e-msg").style.color="var(--bad)"; $("e-msg").textContent="Enter a vendor and an amount above zero."; return; }
+      expenses.push({id:eid++, vesselId:$("e-vessel").value, date:$("e-date").value||"2026-11-16", cat:$("e-cat").value, vendor:vn, amt:a, reimb:$("e-reimb").checked, rc:pendingFile?pendingFile.data:null, rcName:pendingFile?pendingFile.name:null, rcImg:pendingFile?pendingFile.img:false});
+      pendingFile=null; $("e-file").value=""; $("e-fname").textContent="No file chosen"; $("e-vendor").value=""; $("e-amt").value="";
+      $("e-msg").style.color="var(--good)"; $("e-msg").textContent="Expense added. It now flows into the vessel ledger and owner report.";
+      refreshAll();
+    });
+  }
+  function renderExpenses(){
+    var rows='<tr><th>Date</th><th>Vessel</th><th>Category</th><th>Vendor</th><th class="r">Amount</th><th>Reimb.</th><th>Receipt</th></tr>';
+    expenses.slice().reverse().forEach(function(e){
+      var v=vessel(e.vesselId);
+      rows+='<tr><td>'+esc(e.date)+'</td><td class="strong">'+esc(v?v.name:"")+'</td><td>'+esc(e.cat)+'</td><td>'+esc(e.vendor)+'</td>'
+        +'<td class="r num">'+money(e.amt)+'</td><td>'+(e.reimb?'<span class="tag good">Yes</span>':'<span class="tag mut">No</span>')+'</td><td>'+receiptCell(e)+'</td></tr>';
+    });
+    $("expense-tbl").innerHTML=rows;
+    bindReceipts($("expense-tbl"));
+  }
+
+  // ----- payroll (weekly) -----
+  var curWeek=payWeeks.length-1;
+  function initPayroll(){
+    $("week-seg").innerHTML = payWeeks.map(function(w,i){ return '<button data-wi="'+i+'"'+(i===curWeek?' class="on"':'')+'>'+esc(w.ending)+'</button>'; }).join("");
+    $("week-seg").querySelectorAll("button").forEach(function(b){ b.addEventListener("click", function(){ curWeek=parseInt(b.getAttribute("data-wi"),10); renderPayroll(); }); });
+  }
+  function renderPayroll(){
+    $("week-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", parseInt(b.getAttribute("data-wi"),10)===curWeek); });
+    var w=payWeeks[curWeek];
+    $("wk-label").textContent=w.ending;
+    var tot=w.lines.reduce(function(s,l){ return s+l.amt; },0);
+    $("wk-total").textContent="Run total "+money(tot);
+    var rows='<tr><th>Name</th><th>Role</th><th>Assignment</th><th>Type</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Amount</th><th>Status</th></tr>';
+    w.lines.forEach(function(l){
+      rows+='<tr><td class="strong">'+esc(l.name)+'</td><td>'+esc(l.role)+'</td><td>'+esc(l.assign)+'</td><td>'+esc(l.type)+'</td>'
+        +'<td class="r num">'+(l.hours!=null?l.hours:'-')+'</td><td class="r num">'+(l.rate!=null?money(l.rate):'-')+'</td>'
+        +'<td class="r num strong">'+money(l.amt)+'</td><td>'+statusTag(l.status)+'</td></tr>';
+    });
+    rows+='<tr><td colspan="6" class="strong">Weekly total</td><td class="r num strong">'+money(tot)+'</td><td></td></tr>';
+    $("payroll-tbl").innerHTML=rows;
+  }
+
+  // ----- owner reports -----
+  function initOwners(){
+    $("o-owner").innerHTML = owners.map(function(o){ return '<option value="'+o.id+'">'+esc(o.name)+'</option>'; }).join("");
+    $("o-owner").addEventListener("change", renderOwner);
+  }
+  function renderOwner(){
+    var oid=$("o-owner").value, o=owner(oid);
+    var mine=vessels.filter(function(v){ return v.ownerId===oid; });
+    var totalDue=0; mine.forEach(function(v){ totalDue+=vCalc(v).ownerShare; });
+    var html='<div class="card"><div class="card-h"><h2>Owner report: '+esc(o.name)+'</h2><span class="hint">'+(o.email?esc(o.email)+' &middot; ':'')+'Period Nov 2026 &middot; '+mine.length+' vessel'+(mine.length>1?'s':'')+'</span></div>'
+      +'<div class="card-b"><div class="sr tot"><span class="l">Total due to owner this period</span><span class="v num" style="font-size:18px">'+money(totalDue)+'</span></div></div></div>';
+    mine.forEach(function(v){
+      var c=vCalc(v);
+      var docs=vExpenses(v.id).filter(function(e){ return e.rc; });
+      html+='<div class="card"><div class="card-h"><h2>'+esc(v.name)+'</h2><span class="hint mono" style="font-size:11px">HIN '+esc(v.hin)+'</span></div><div class="card-b">'
+        +'<div class="seclab">Charter revenue</div>';
+      vCharters(v.id).forEach(function(ch){ html+='<div class="sr ind"><span class="l">'+esc(ch.date)+' &middot; '+esc(ch.ctype)+' &middot; '+ch.hours+'h @ '+money(ch.rate)+'</span><span class="v">'+money(ch.hours*ch.rate)+'</span></div>'; });
+      html+='<div class="sr tot"><span class="l">Gross charter revenue</span><span class="v">'+money(c.gross)+'</span></div>'
+        +'<div class="seclab">Expenses</div>';
+      vExpenses(v.id).forEach(function(e){ var isCap=e.cat==="Crew / captain"; var tg=(isCap&&c.capMode==="service")?' <span class="tag mut">company service</span>':''; html+='<div class="sr ind"><span class="l">'+esc(e.cat)+' &middot; '+esc(e.vendor)+tg+'</span><span class="v">'+money(e.amt)+'</span></div>'; });
+      html+='<div class="sr tot"><span class="l">Deductible expenses</span><span class="v">'+money(c.exp)+'</span></div>'
+        +'<div class="seclab">Distribution</div>'
+        +'<div class="sr"><span class="l">Net charter income</span><span class="v">'+money(c.net)+'</span></div>'
+        +((c.capMode==="expense"&&c.capExp>0)?'<div class="sr" style="font-size:11.5px"><span class="l">(includes captain fees of '+money(c.capExp)+' as a charter cost)</span><span class="v"></span></div>':'')
+        +'<div class="sr ded"><span class="l">Less: management fee ('+v.mgmt+'%)</span><span class="v">'+money(-c.mgmtFee)+'</span></div>'
+        +'<div class="sr tot"><span class="l">Distributable income</span><span class="v">'+money(c.dist)+'</span></div>'
+        +'<div class="sr ind"><span class="l">Owner share ('+v.ownerPct+'%)</span><span class="v">'+money(c.ownerShare)+'</span></div>'
+        +'<div class="payout"><span class="k">Owner net payout</span><span class="v num">'+money(c.ownerShare)+'</span></div>'
+        +((c.capMode==="service"&&c.capExp>0)?'<div class="note" style="margin-top:8px">Captain fees of '+money(c.capExp)+' billed as a company service, not deducted from this owner.</div>':'');
+      if(docs.length){ html+='<div class="seclab">Supporting documents</div><div class="docs">'+docs.map(function(e){ var inner=e.rcImg?'<img src="'+e.rc+'" alt="">':'<span class="doc">PDF</span>'; return '<span class="rc" data-rid="'+e.id+'">'+inner+'<span>'+esc(e.cat)+'</span></span>'; }).join("")+'</div>'; }
+      html+='</div></div>';
+    });
+    $("owner-report").innerHTML=html;
+    bindReceipts($("owner-report"));
+  }
+
+  // ----- membership (billing cycle is explicit, never assumed) -----
+  var termMonths = {Monthly:1, Quarterly:3, "Semi-annual":6, Annual:12};
+  var mid=1;
+  var members = [
+    {id:mid++, name:"A. Whitfield",     email:"a.whitfield@example.com",  tier:"Signature", cycle:"Annual",      amt:24900, next:"2027-02-01", status:"Active"},
+    {id:mid++, name:"M. Delacroix",     email:"m.delacroix@example.com",  tier:"Signature", cycle:"Monthly",     amt:2400,  next:"2026-12-01", status:"Active"},
+    {id:mid++, name:"Coastal Group",    email:"ap@coastalgroup.example.com", tier:"Corporate", cycle:"Quarterly",   amt:8400,  next:"2026-12-05", status:"Active"},
+    {id:mid++, name:"R. Santos",        email:"r.santos@example.com",     tier:"Classic",   cycle:"Semi-annual", amt:9900,  next:"2027-03-01", status:"Active"},
+    {id:mid++, name:"The Vance Family", email:"vance.family@example.com", tier:"Classic",   cycle:"Annual",      amt:18900, next:"2027-05-10", status:"Active"},
+    {id:mid++, name:"J. Abara",         email:"j.abara@example.com",      tier:"Signature", cycle:"Monthly",     amt:2200,  next:"2026-12-01", status:"Overdue"}
+  ];
+  function monthly(m){ return m.amt/(termMonths[m.cycle]||1); }
+  function memberTag(s){ var k=s==="Active"?"good":(s==="Overdue"?"bad":"warn"); return '<span class="tag '+k+'">'+esc(s)+'</span>'; }
+  function initMembership(){
+    function prev(){ var a=parseFloat($("m-amt").value)||0, t=termMonths[$("m-cycle").value]||1; $("m-prev").textContent=money(a/t); }
+    $("m-amt").addEventListener("input", prev); $("m-cycle").addEventListener("change", prev);
+    $("m-add").addEventListener("click", function(){
+      var a=parseFloat($("m-amt").value), nm=$("m-name").value.trim();
+      if(isNaN(a)||a<=0||!nm){ $("m-msg").style.color="var(--bad)"; $("m-msg").textContent="Enter a member name and an amount above zero."; return; }
+      members.push({id:mid++, name:nm, email:$("m-email").value.trim(), tier:$("m-tier").value, cycle:$("m-cycle").value, amt:a, next:$("m-next").value||"2026-12-01", status:"Active"});
+      $("m-name").value=""; $("m-email").value=""; $("m-amt").value=""; $("m-prev").textContent="$0";
+      $("m-msg").style.color="var(--good)"; $("m-msg").textContent="Membership added. Recurring revenue updated.";
+      refreshAll();
+    });
+  }
+  function renderMembership(){
+    var mrr=0; members.forEach(function(m){ if(m.status==="Active") mrr+=monthly(m); });
+    $("m-kpis").innerHTML=[
+      {k:"Active members", v:members.filter(function(m){return m.status==="Active";}).length},
+      {k:"Monthly recurring (recognized)", v:money(mrr)},
+      {k:"Annual run rate", v:money(mrr*12)},
+      {k:"Attention needed", v:members.filter(function(m){return m.status==="Overdue";}).length+" overdue"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+    var rows='<tr><th>Member</th><th>Email</th><th>Tier</th><th>Billing cycle</th><th class="r">Amount / cycle</th><th class="r">Recognized / mo</th><th>Next bill</th><th>Status</th></tr>';
+    members.forEach(function(m){
+      rows+='<tr><td class="strong">'+esc(m.name)+'</td><td class="mono" style="font-size:11px">'+esc(m.email||"no email")+'</td><td>'+esc(m.tier)+'</td><td><span class="tag acc">'+esc(m.cycle)+'</span></td>'
+        +'<td class="r num">'+money(m.amt)+'</td><td class="r num">'+money(monthly(m))+'</td><td>'+esc(m.next)+'</td><td>'+memberTag(m.status)+'</td></tr>';
+    });
+    $("member-tbl").innerHTML=rows;
+  }
+
+  // ----- sailing education -----
+  var coid=1;
+  var courses = [
+    {id:coid++, name:"ASA 101: Basic Keelboat",   instructor:"S. Delgado",      students:6, fee:595,  start:"2026-11-09", status:"In progress"},
+    {id:coid++, name:"ASA 103: Coastal Cruising", instructor:"S. Delgado",      students:4, fee:795,  start:"2026-11-16", status:"Enrolling"},
+    {id:coid++, name:"Powerboat Certification",   instructor:"M. Alvarez",      students:5, fee:450,  start:"2026-11-23", status:"Enrolling"},
+    {id:coid++, name:"Captain's License Prep",    instructor:"Capt. J. Mercer", students:3, fee:1200, start:"2026-12-01", status:"Scheduled"}
+  ];
+  function courseById(id){ for(var i=0;i<courses.length;i++) if(courses[i].id===id) return courses[i]; }
+  function courseTag(s){ var k=s==="In progress"?"good":(s==="Enrolling"?"acc":"mut"); return '<span class="tag '+k+'">'+esc(s)+'</span>'; }
+  function renderSailing(){
+    var rev=0, enr=0; courses.forEach(function(c){ rev+=c.students*c.fee; enr+=c.students; });
+    $("sail-kpis").innerHTML=[
+      {k:"Courses this term", v:courses.length},{k:"Enrollments", v:enr},
+      {k:"Course revenue", v:money(rev)},{k:"Avg. fee per seat", v:money(enr?rev/enr:0)}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+    var rows='<tr><th>Course</th><th>Instructor</th><th class="r">Seats</th><th class="r">Fee / seat</th><th class="r">Revenue</th><th>Start</th><th>Status</th><th></th></tr>';
+    courses.forEach(function(c){
+      rows+='<tr><td class="strong">'+esc(c.name)+'</td><td>'+esc(c.instructor)+'</td>'
+        +'<td class="r"><input class="cell-inp" type="number" min="0" data-id="'+c.id+'" data-f="students" value="'+c.students+'"></td>'
+        +'<td class="r"><input class="cell-inp" type="number" min="0" data-id="'+c.id+'" data-f="fee" value="'+c.fee+'"></td>'
+        +'<td class="r num strong">'+money(c.students*c.fee)+'</td><td>'+esc(c.start)+'</td><td>'+courseTag(c.status)+'</td>'
+        +'<td class="r"><button class="del" data-id="'+c.id+'">Remove</button></td></tr>';
+    });
+    $("sail-tbl").innerHTML=rows;
+    $("sail-tbl").querySelectorAll(".cell-inp").forEach(function(inp){ inp.addEventListener("change", function(){ var c=courseById(parseInt(inp.getAttribute("data-id"),10)); if(c){ c[inp.getAttribute("data-f")]=parseFloat(inp.value)||0; refreshAll(); } }); });
+    $("sail-tbl").querySelectorAll(".del").forEach(function(btn){ btn.addEventListener("click", function(){ var id=parseInt(btn.getAttribute("data-id"),10); courses=courses.filter(function(x){ return x.id!==id; }); refreshAll(); }); });
+  }
+  function initAddCourse(){
+    $("co-add").addEventListener("click", function(){
+      var nm=$("co-name").value.trim(), seats=parseFloat($("co-seats").value), fee=parseFloat($("co-fee").value);
+      if(!nm||isNaN(seats)||seats<0||isNaN(fee)||fee<0){ $("co-msg").style.color="var(--bad)"; $("co-msg").textContent="Enter a course name, seats, and fee."; return; }
+      courses.push({id:coid++, name:nm, instructor:$("co-inst").value.trim()||"TBD", students:seats, fee:fee, start:$("co-start").value||"2026-12-01", status:$("co-status").value});
+      $("co-name").value=""; $("co-inst").value=""; $("co-seats").value=""; $("co-fee").value="";
+      $("co-msg").style.color="var(--good)"; $("co-msg").textContent="Course added.";
+      refreshAll();
+    });
+  }
+
+  // ----- captain hiring -----
+  var capList = [
+    {name:"Capt. J. Mercer", lic:"USCG Master 100 GT", status:"Assigned",  assign:"M/Y Gulf Serenity", bill:450, pay:350},
+    {name:"Capt. P. Nolan",  lic:"USCG Master 50 GT",  status:"Assigned",  assign:"S/Y Aurora Belle",  bill:480, pay:360},
+    {name:"Capt. L. Okafor", lic:"USCG Master 100 GT", status:"Assigned",  assign:"M/Y Sanibel Pearl", bill:430, pay:340},
+    {name:"Capt. R. Mensah", lic:"USCG Master 50 GT",  status:"Available", assign:"Unassigned",            bill:420, pay:330},
+    {name:"Capt. D. Fowler", lic:"USCG OUPV (6-pack)", status:"Available", assign:"Unassigned",            bill:380, pay:300}
+  ];
+  function renderCaptains(){
+    var assigned=capList.filter(function(c){ return c.status==="Assigned"; });
+    var margin=0; assigned.forEach(function(c){ margin+=c.bill-c.pay; });
+    $("cap-kpis").innerHTML=[
+      {k:"Captains on roster", v:capList.length},{k:"Assigned", v:assigned.length},
+      {k:"Available", v:capList.length-assigned.length},{k:"Daily placement margin", v:money(margin)}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+    var rows='<tr><th>Captain</th><th>USCG license</th><th>Status</th><th>Assignment</th><th class="r">Bill / day</th><th class="r">Pay / day</th><th class="r">Margin / day</th></tr>';
+    capList.forEach(function(c){
+      rows+='<tr><td class="strong">'+esc(c.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(c.lic)+'</td>'
+        +'<td><span class="tag '+(c.status==="Assigned"?"acc":"mut")+'">'+esc(c.status)+'</span></td><td>'+esc(c.assign)+'</td>'
+        +'<td class="r num">'+money(c.bill)+'</td><td class="r num">'+money(c.pay)+'</td><td class="r num strong">'+money(c.bill-c.pay)+'</td></tr>';
+    });
+    $("cap-tbl").innerHTML=rows;
+  }
+
+  // ----- brokerage (upcoming) -----
+  var deals = [
+    {listing:"M/Y Bluewater 58",      type:"Motor yacht",   ask:1850000, status:"Under contract", comm:8},
+    {listing:"Catamaran Horizon 40",  type:"Catamaran",     ask:720000,  status:"Listed",         comm:9},
+    {listing:"S/Y Windward 44",       type:"Sailing yacht", ask:575000,  status:"Listed",         comm:10},
+    {listing:"M/Y Gulf Runner 42",    type:"Motor yacht",   ask:395000,  status:"Prospect",       comm:10}
+  ];
+  function renderBrokerage(){
+    var pipeline=0, estComm=0, uc=0;
+    deals.forEach(function(d){ pipeline+=d.ask; if(d.status!=="Prospect") estComm+=d.ask*d.comm/100; if(d.status==="Under contract") uc++; });
+    $("brk-kpis").innerHTML=[
+      {k:"Pipeline value", v:money(pipeline)},{k:"Est. commission", v:money(estComm)},
+      {k:"Active listings", v:deals.filter(function(d){return d.status!=="Prospect";}).length},{k:"Under contract", v:uc}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+    var rows='<tr><th>Listing</th><th>Type</th><th class="r">Asking price</th><th>Status</th><th class="r">Comm. %</th><th class="r">Est. commission</th></tr>';
+    deals.forEach(function(d){ var k=d.status==="Under contract"?"good":(d.status==="Listed"?"acc":"mut"); rows+='<tr><td class="strong">'+esc(d.listing)+'</td><td>'+esc(d.type)+'</td><td class="r num">'+money(d.ask)+'</td><td><span class="tag '+k+'">'+esc(d.status)+'</span></td><td class="r num">'+d.comm+'%</td><td class="r num strong">'+money(d.ask*d.comm/100)+'</td></tr>'; });
+    $("brk-tbl").innerHTML=rows;
+  }
+
+  // ----- divisions rollup (dashboard) -----
+  function renderDivisions(){
+    var charterRev=0; vessels.forEach(function(v){ charterRev+=vRevenue(v.id); });
+    var mrr=0; members.forEach(function(m){ if(m.status==="Active") mrr+=monthly(m); });
+    var sailRev=0; courses.forEach(function(c){ sailRev+=c.students*c.fee; });
+    var capAssigned=capList.filter(function(c){ return c.status==="Assigned"; }).length;
+    var pipeline=0; deals.forEach(function(d){ pipeline+=d.ask; });
+    var payouts=0; vessels.forEach(function(v){ payouts+=vCalc(v).ownerShare; });
+    var rows=[
+      {d:"Private charters",       m:money(charterRev)+" revenue",        v:"charters"},
+      {d:"Yacht club membership",  m:money(mrr)+" / mo recurring",        v:"membership"},
+      {d:"Yacht management",       m:money(payouts)+" owner payouts",     v:"vessels"},
+      {d:"Sailing education",      m:money(sailRev)+" term revenue",      v:"sailing"},
+      {d:"Captain hiring",         m:capAssigned+" captains assigned",    v:"captains"},
+      {d:"Brokerage (upcoming)",   m:money(pipeline)+" pipeline (proj.)", v:"brokerage"}
+    ];
+    $("div-tbl").innerHTML='<tr><th>Division</th><th>This period</th><th></th></tr>'+rows.map(function(r){ return '<tr class="clickable" data-go="'+r.v+'"><td class="strong">'+r.d+'</td><td class="num">'+r.m+'</td><td class="r"><span class="link">Open &rarr;</span></td></tr>'; }).join("");
+    $("div-tbl").querySelectorAll("tr.clickable").forEach(function(tr){ tr.addEventListener("click", function(){ go(tr.getAttribute("data-go")); }); });
+  }
+
+  // ----- recon + close -----
+  function reconStatus(r){
+    if(!r.bank) return {label:"Awaiting deposit", k:"warn"};
+    var diff=r.bank-(r.booked-r.fee);
+    if(Math.abs(diff)<=1) return {label:"Reconciled", k:"good"};
+    return {label:"Variance "+money(diff), k:"bad"};
+  }
+  function renderRecon(){
+    var booked=0, fees=0, settled=0, review=0;
+    recon.forEach(function(r){ booked+=r.booked; fees+=r.fee; settled+=r.bank; if(reconStatus(r).label!=="Reconciled") review++; });
+    $("rec-kpis").innerHTML=[
+      {k:"Total booked", v:money(booked)},{k:"Processor fees", v:money(fees)},
+      {k:"Settled to bank", v:money(settled)},{k:"Items to review", v:review}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
+    var rows='<tr><th>Date</th><th>Source</th><th>Via</th><th class="r">Booked</th><th class="r">Processor fee</th><th class="r">Net expected</th><th class="r">Deposited</th><th>Status</th><th></th></tr>';
+    recon.forEach(function(r){
+      var st=reconStatus(r);
+      rows+='<tr><td>'+esc(r.date)+'</td><td class="strong">'+esc(r.src)+'</td>'
+        +'<td><span class="tag mut">'+esc(r.proc||"Other")+'</span></td>'
+        +'<td class="r num">'+money(r.booked)+'</td><td class="r num">'+money(-r.fee)+'</td>'
+        +'<td class="r num">'+money(r.booked-r.fee)+'</td><td class="r num">'+(r.bank?money(r.bank):'<span class="none">pending</span>')+'</td>'
+        +'<td><span class="tag '+st.k+'">'+esc(st.label)+'</span></td>'
+        +'<td class="r"><button class="del" data-rid="'+r.id+'">Remove</button></td></tr>';
+    });
+    $("recon-tbl").innerHTML=rows;
+    $("recon-tbl").querySelectorAll(".del").forEach(function(btn){ btn.addEventListener("click", function(){ var id=parseInt(btn.getAttribute("data-rid"),10); recon=recon.filter(function(x){ return x.id!==id; }); refreshAll(); }); });
+  }
+  function initAddRecon(){
+    $("r-add").addEventListener("click", function(){
+      var bk=parseFloat($("r-booked").value), src=$("r-src").value.trim();
+      if(isNaN(bk)||bk<=0||!src){ $("r-msg").style.color="var(--bad)"; $("r-msg").textContent="Enter a source and a booked amount above zero."; return; }
+      var bankv=$("r-bank").value.trim()===""?0:(parseFloat($("r-bank").value)||0);
+      recon.push({id:rseq++, date:$("r-date").value||"2026-11-20", src:src, proc:$("r-proc").value, booked:bk, fee:parseFloat($("r-fee").value)||0, bank:bankv});
+      $("r-src").value=""; $("r-booked").value=""; $("r-fee").value=""; $("r-bank").value="";
+      $("r-msg").style.color="var(--good)"; $("r-msg").textContent="Transaction added via "+esc($("r-proc").value)+".";
+      refreshAll();
+    });
+  }
+  function renderClose(){
+    $("close-steps").innerHTML = steps.map(function(s,i){ return '<label class="step'+(s.done?" done":"")+'"><input type="checkbox" data-i="'+i+'"'+(s.done?" checked":"")+'><span>'+esc(s.lab)+'</span></label>'; }).join("");
+    $("close-steps").querySelectorAll("input").forEach(function(el){ el.addEventListener("change", function(){ steps[parseInt(el.getAttribute("data-i"),10)].done=el.checked; renderClose(); }); });
+    var done=steps.filter(function(s){ return s.done; }).length, pct=Math.round(done/steps.length*100);
+    $("close-pct").textContent=pct; $("close-bar").style.width=pct+"%";
+  }
+
+  // ----- receipt modal -----
+  function openReceipt(id){
+    var e=null; for(var i=0;i<expenses.length;i++) if(expenses[i].id===id) e=expenses[i];
+    if(!e||!e.rc) return;
+    $("modal-t").textContent="Receipt • "+e.vendor+" • "+money(e.amt);
+    $("modal-b").innerHTML = e.rcImg ? '<img src="'+e.rc+'" alt="Receipt">' : '<div class="nd">Document attached: <b>'+esc(e.rcName||"receipt.pdf")+'</b><br>(PDF preview not shown in prototype)</div>';
+    $("modal").classList.add("open");
+  }
+  $("modal-x").addEventListener("click", function(){ $("modal").classList.remove("open"); });
+  $("modal").addEventListener("click", function(ev){ if(ev.target===$("modal")) $("modal").classList.remove("open"); });
+
+  // ----- reactivity + add forms -----
+  // ----- refunds -----
+  function refundsTotal(){ return refunds.reduce(function(s,r){ return s+r.amt; },0); }
+  function renderRefunds(){
+    if(!$("refund-tbl")) return;
+    var rows='<tr><th>Date</th><th>Division</th><th>Processor</th><th>Reason</th><th class="r">Amount</th><th></th></tr>';
+    if(!refunds.length) rows+='<tr><td colspan="6" class="none" style="padding:14px">No refunds logged this period.</td></tr>';
+    refunds.forEach(function(r){
+      rows+='<tr><td>'+esc(r.date)+'</td><td>'+esc(r.division)+'</td><td>'+esc(r.proc)+'</td><td>'+esc(r.reason)+'</td>'
+        +'<td class="r num" style="color:var(--bad)">'+money(-r.amt)+'</td><td class="r"><button class="del" data-rid="'+r.id+'">Remove</button></td></tr>';
+    });
+    if(refunds.length) rows+='<tr><td colspan="4" class="strong">Total refunds</td><td class="r num strong" style="color:var(--bad)">'+money(-refundsTotal())+'</td><td></td></tr>';
+    $("refund-tbl").innerHTML=rows;
+    $("refund-tbl").querySelectorAll(".del").forEach(function(b){ b.addEventListener("click", function(){ var id=parseInt(b.getAttribute("data-rid"),10); refunds=refunds.filter(function(x){ return x.id!==id; }); refreshAll(); }); });
+  }
+  function initRefunds(){
+    $("rf-add").addEventListener("click", function(){
+      var a=parseFloat($("rf-amt").value);
+      if(isNaN(a)||a<=0){ $("rf-msg").style.color="var(--bad)"; $("rf-msg").textContent="Enter a refund amount above zero."; return; }
+      refunds.push({id:rfid++, date:$("rf-date").value||"2026-11-16", division:$("rf-div").value, proc:$("rf-proc").value, amt:a, reason:$("rf-reason").value.trim()||"Refund"});
+      $("rf-amt").value=""; $("rf-reason").value="";
+      $("rf-msg").style.color="var(--good)"; $("rf-msg").textContent="Refund logged. P&L updated.";
+      refreshAll();
+    });
+  }
+
+  // ----- company P&L / financials -----
+  function rosterByName(n){ for(var i=0;i<capList.length;i++) if(capList[i].name===n) return capList[i]; }
+  function captainMargin(){
+    var byName={};
+    payWeeks.forEach(function(w){ w.lines.forEach(function(l){ if(l.role==="Captain") byName[l.name]=(byName[l.name]||0)+l.amt; }); });
+    var m=0; Object.keys(byName).forEach(function(n){ var r=rosterByName(n); var mk=(r&&r.pay>0)?r.bill/r.pay:1.28; m+=byName[n]*(mk-1); });
+    return m;
+  }
+  function payrollNonCaptain(){ var s=0; payWeeks.forEach(function(w){ w.lines.forEach(function(l){ if(l.role!=="Captain") s+=l.amt; }); }); return s; }
+  function merchantFees(){ return recon.reduce(function(s,r){ return s+r.fee; },0); }
+  function financials(){
+    var rCharter=0; vessels.forEach(function(v){ rCharter+=vCalc(v).coTotal; });
+    var rMember=0; members.forEach(function(m){ if(m.status==="Active") rMember+=monthly(m); });
+    var rSail=0; courses.forEach(function(c){ rSail+=c.students*c.fee; });
+    var rCapt=captainMargin(), rBrk=0;
+    var gross=rCharter+rMember+rSail+rCapt+rBrk;
+    var refs=refundsTotal(), netRev=gross-refs;
+    var ePay=payrollNonCaptain(), eFee=merchantFees(), eOh=overhead.reduce(function(s,o){ return s+o.amt; },0);
+    var totalExp=ePay+eFee+eOh, netIncome=netRev-totalExp;
+    return {rCharter:rCharter,rMember:rMember,rSail:rSail,rCapt:rCapt,rBrk:rBrk,gross:gross,refs:refs,netRev:netRev,ePay:ePay,eFee:eFee,eOh:eOh,totalExp:totalExp,netIncome:netIncome,margin:netRev>0?netIncome/netRev*100:0};
+  }
+  function bar(label, val, max, color){
+    var w=max>0?Math.max(2,Math.round(val/max*100)):0;
+    return '<div style="margin-bottom:11px"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px"><span style="color:var(--muted)">'+label+'</span><span class="num strong">'+money(val)+'</span></div>'
+      +'<div style="height:13px; background:var(--line2); border-radius:7px; overflow:hidden"><span style="display:block; height:100%; width:'+w+'%; background:'+color+'; border-radius:7px"></span></div></div>';
+  }
+  function renderFinancials(){
+    if(!$("fin-kpis")) return;
+    var f=financials();
+    $("fin-kpis").innerHTML=[
+      {k:"Total revenue", v:money(f.netRev), d:"Net of refunds"},
+      {k:"Total expenses", v:money(f.totalExp), d:"Payroll, fees, overhead"},
+      {k:"Net income", v:money(f.netIncome), d:"Company, Nov MTD"},
+      {k:"Net margin", v:r1(f.margin)+"%", d:"Net income / revenue"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
+    $("fin-pnl").innerHTML =
+      '<div class="seclab" style="margin-top:0">Revenue</div>'
+      +'<div class="sr"><span class="l">Charter management income</span><span class="v">'+money(f.rCharter)+'</span></div>'
+      +'<div class="sr"><span class="l">Club membership dues (recognized)</span><span class="v">'+money(f.rMember)+'</span></div>'
+      +'<div class="sr"><span class="l">Sailing school tuition</span><span class="v">'+money(f.rSail)+'</span></div>'
+      +'<div class="sr"><span class="l">Captain services (net margin)</span><span class="v">'+money(f.rCapt)+'</span></div>'
+      +'<div class="sr"><span class="l">Brokerage commission (recognized)</span><span class="v">'+money(f.rBrk)+'</span></div>'
+      +'<div class="sr tot"><span class="l">Gross revenue</span><span class="v">'+money(f.gross)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Less: customer refunds</span><span class="v">'+money(-f.refs)+'</span></div>'
+      +'<div class="sr tot"><span class="l">Net revenue</span><span class="v">'+money(f.netRev)+'</span></div>'
+      +'<div class="seclab">Operating expenses</div>'
+      +'<div class="sr ded"><span class="l">Payroll (shore crew &amp; instructors)</span><span class="v">'+money(-f.ePay)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Merchant &amp; processor fees</span><span class="v">'+money(-f.eFee)+'</span></div>'
+      +'<div class="sr ded"><span class="l">General &amp; administrative</span><span class="v">'+money(-f.eOh)+'</span></div>'
+      +'<div class="sr tot"><span class="l">Total expenses</span><span class="v">'+money(-f.totalExp)+'</span></div>'
+      +'<div class="payout"><span class="k">Net income</span><span class="v num">'+money(f.netIncome)+'</span></div>'
+      +'<div class="note" style="margin-top:10px">Captain pay is netted inside Captain services, so payroll covers shore crew, instructors, and admin. Every figure recomputes from the charter, expense, payroll, membership, and refund logs.</div>';
+    var mx=Math.max(f.netRev, f.totalExp, 1);
+    $("fin-chart").innerHTML = bar("Revenue", f.netRev, mx, "var(--good)") + bar("Expenses", f.totalExp, mx, "var(--bad)")
+      + '<div class="sr tot" style="margin-top:4px"><span class="l">Net income ('+r1(f.margin)+'% margin)</span><span class="v num">'+money(f.netIncome)+'</span></div>';
+    renderRefunds();
+  }
+
+  // ----- membership renewal reminders -----
+  function daysUntil(d){ return Math.round((new Date(d+"T00:00:00") - new Date("2026-11-16T00:00:00"))/86400000); }
+  function renderReminders(){
+    if(!$("reminder-tbl")) return;
+    var soon=members.filter(function(m){ return daysUntil(m.next)<=45; }).sort(function(a,b){ return daysUntil(a.next)-daysUntil(b.next); });
+    var rows='<tr><th>Member</th><th>Email</th><th>Cycle</th><th>Next bill</th><th class="r">Due in</th><th class="r">Amount</th><th>Reminder</th></tr>';
+    if(!soon.length) rows+='<tr><td colspan="7" class="none" style="padding:14px">No memberships due within 45 days.</td></tr>';
+    soon.forEach(function(m){
+      var d=daysUntil(m.next), urg=d<=14?"bad":(d<=30?"warn":"mut");
+      var btn=m.reminded?'<span class="tag good">Reminder sent '+esc(m.reminded)+'</span>':'<button class="btn ghost" style="padding:5px 10px" data-mid="'+m.id+'">Send reminder</button>';
+      rows+='<tr><td class="strong">'+esc(m.name)+'</td><td class="mono" style="font-size:11px">'+esc(m.email||"no email on file")+'</td>'
+        +'<td><span class="tag acc">'+esc(m.cycle)+'</span></td><td>'+esc(m.next)+'</td><td class="r"><span class="tag '+urg+'">'+(d<0?"overdue":"in "+d+"d")+'</span></td>'
+        +'<td class="r num">'+money(m.amt)+'</td><td>'+btn+'</td></tr>';
+    });
+    $("reminder-tbl").innerHTML=rows;
+    $("reminder-tbl").querySelectorAll("button[data-mid]").forEach(function(b){ b.addEventListener("click", function(){ var id=parseInt(b.getAttribute("data-mid"),10); var m=members.filter(function(x){ return x.id===id; })[0]; if(m){ m.reminded="2026-11-16"; renderReminders(); } }); });
+  }
+
+  // ----- processor report import + matching (human approval required) -----
+  var importRows=[];
+  function daysBetween(a,b){ return (new Date(a+"T00:00:00") - new Date(b+"T00:00:00"))/86400000; }
+  function loadProcReport(){
+    var proc=$("imp-proc").value;
+    var src=charters.slice(0,4).map(function(c){ var g=c.hours*c.rate, fee=estFee(proc,g); return {date:c.date, desc:c.ctype+" - "+c.client, gross:g, fee:fee, net:Math.round((g-fee)*100)/100}; });
+    src.push({date:"2026-11-15", desc:"Online payment", gross:2400, fee:estFee(proc,2400), net:Math.round((2400-estFee(proc,2400))*100)/100});
+    importRows=src.map(function(t,i){
+      var match=null;
+      charters.forEach(function(c){ var g=c.hours*c.rate; if(Math.abs(g-t.gross)<1 && Math.abs(daysBetween(c.date,t.date))<=3) match=c; });
+      var already=recon.some(function(r){ return Math.abs(r.booked-t.gross)<1 && r.date===t.date; });
+      return {i:i, t:t, proc:proc, match:match, status:already?"already":(match?"matched":"review"), done:false};
+    });
+    renderImport();
+  }
+  function renderImport(){
+    if(!$("imp-tbl")) return;
+    if(!importRows.length){ $("imp-tbl").innerHTML='<tr><td colspan="7" class="none" style="padding:14px">Choose a processor and load a report to begin matching.</td></tr>'; return; }
+    var rows='<tr><th>Date</th><th>Processor transaction</th><th class="r">Gross</th><th class="r">Fee</th><th class="r">Net</th><th>Match to log</th><th class="r">Action</th></tr>';
+    importRows.forEach(function(r){
+      var statusCell, action;
+      if(r.done){ statusCell='<span class="tag good">Posted to ledger</span>'; action='<span class="none">Done</span>'; }
+      else if(r.status==="already"){ statusCell='<span class="tag mut">Already reconciled</span>'; action='<span class="none">Skip</span>'; }
+      else if(r.status==="matched"){ statusCell='<span class="tag good">Matched: '+esc(r.match.ctype)+'</span>'; action='<button class="btn" style="padding:5px 11px" data-imp="'+r.i+'">Approve</button>'; }
+      else { statusCell='<span class="tag warn">No match, review</span>'; action='<button class="btn ghost" style="padding:5px 11px" data-imp="'+r.i+'">Approve anyway</button>'; }
+      rows+='<tr><td>'+esc(r.t.date)+'</td><td>'+esc(r.t.desc)+' <span class="idpill">'+esc(r.proc)+'</span></td><td class="r num">'+money(r.t.gross)+'</td><td class="r num">'+money(-r.t.fee)+'</td><td class="r num strong">'+money(r.t.net)+'</td><td>'+statusCell+'</td><td class="r">'+action+'</td></tr>';
+    });
+    $("imp-tbl").innerHTML=rows;
+    $("imp-tbl").querySelectorAll("button[data-imp]").forEach(function(b){ b.addEventListener("click", function(){ approveImport(parseInt(b.getAttribute("data-imp"),10)); }); });
+  }
+  function approveImport(i){
+    var r=importRows.filter(function(x){ return x.i===i; })[0]; if(!r||r.done) return;
+    recon.push({id:rseq++, date:r.t.date, src:(r.match?r.match.ctype:r.t.desc), proc:r.proc, booked:r.t.gross, fee:r.t.fee, bank:r.t.net});
+    r.done=true; refreshAll(); renderImport();
+  }
+  function approveAllMatched(){
+    importRows.forEach(function(r){ if(!r.done && r.status==="matched"){ recon.push({id:rseq++, date:r.t.date, src:r.match.ctype, proc:r.proc, booked:r.t.gross, fee:r.t.fee, bank:r.t.net}); r.done=true; } });
+    refreshAll(); renderImport();
+  }
+  function initImport(){ $("imp-load").addEventListener("click", loadProcReport); $("imp-approve-all").addEventListener("click", approveAllMatched); renderImport(); }
+
+  function refreshAll(){ renderDash(); renderFinancials(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage(); renderOwner(); renderRecon(); renderDivisions(); }
+  function refreshSelects(){
+    var cv=$("c-vessel").value, ev=$("e-vessel").value, ov=$("o-owner").value;
+    var vopt=vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("");
+    $("c-vessel").innerHTML=vopt; $("e-vessel").innerHTML=vopt;
+    $("o-owner").innerHTML=owners.map(function(o){ return '<option value="'+o.id+'">'+esc(o.name)+'</option>'; }).join("");
+    if(cv) $("c-vessel").value=cv; if(ev) $("e-vessel").value=ev; if(ov) $("o-owner").value=ov;
+  }
+  var vseq=1;
+  function findOrCreateOwner(name, email){
+    for(var i=0;i<owners.length;i++) if(owners[i].name.toLowerCase()===name.toLowerCase()){ if(email) owners[i].email=email; return owners[i].id; }
+    var id="ow"+(vseq++); owners.push({id:id, name:name, email:email||""}); return id;
+  }
+  function initAddVessel(){
+    $("v-add").addEventListener("click", function(){
+      var nm=$("v-name").value.trim(), hin=$("v-hin").value.trim().toUpperCase(), ow=$("v-owner").value.trim();
+      if(!nm||!hin||!ow){ $("v-msg").style.color="var(--bad)"; $("v-msg").textContent="Enter a vessel name, HIN, and owner."; return; }
+      vessels.push({id:"vx"+(vseq++), name:nm, hin:hin, reg:$("v-reg").value.trim()||"Pending", ownerId:findOrCreateOwner(ow, $("v-oemail").value.trim()), mgmt:parseFloat($("v-mgmt").value)||0, ownerPct:parseFloat($("v-share").value)||0, capMode:$("v-capmode").value, status:"Active"});
+      $("v-name").value=""; $("v-hin").value=""; $("v-reg").value=""; $("v-owner").value=""; $("v-oemail").value="";
+      refreshSelects();
+      $("v-msg").style.color="var(--good)"; $("v-msg").textContent="Vessel added to the fleet register.";
+      refreshAll();
+    });
+  }
+  function initAddCaptain(){
+    $("cap-add").addEventListener("click", function(){
+      var nm=$("cap-name").value.trim(), lic=$("cap-lic").value.trim();
+      if(!nm||!lic){ $("cap-msg").style.color="var(--bad)"; $("cap-msg").textContent="Enter a captain name and license."; return; }
+      capList.push({name:nm, lic:lic, status:$("cap-status").value, assign:$("cap-assign").value.trim()||"Unassigned", bill:parseFloat($("cap-bill").value)||0, pay:parseFloat($("cap-pay").value)||0});
+      $("cap-name").value=""; $("cap-lic").value=""; $("cap-assign").value=""; $("cap-bill").value=""; $("cap-pay").value="";
+      $("cap-msg").style.color="var(--good)"; $("cap-msg").textContent="Captain added to the roster.";
+      refreshAll();
+    });
+  }
+  function initAddPay(){
+    $("p-add").addEventListener("click", function(){
+      var nm=$("p-name").value.trim();
+      var h=parseFloat($("p-hours").value), rt=parseFloat($("p-rate").value), am=parseFloat($("p-amt").value);
+      var amount=(!isNaN(h)&&!isNaN(rt)&&h>0&&rt>0)?h*rt:(am||0);
+      if(!nm||amount<=0){ $("p-msg").style.color="var(--bad)"; $("p-msg").textContent="Enter a name and either hours and rate, or a flat amount."; return; }
+      payWeeks[curWeek].lines.push({name:nm, role:$("p-role").value.trim()||"Contractor", assign:$("p-assign").value.trim()||"Fleet", type:$("p-type").value, hours:(!isNaN(h)&&h>0)?h:null, rate:(!isNaN(rt)&&rt>0)?rt:null, amt:amount, status:"Pending"});
+      $("p-name").value=""; $("p-role").value=""; $("p-assign").value=""; $("p-hours").value=""; $("p-rate").value=""; $("p-amt").value="";
+      $("p-msg").style.color="var(--good)"; $("p-msg").textContent="Pay line added to the selected week.";
+      refreshAll();
+    });
+  }
+
+  // ----- charter types (shared, editable) -----
+  var charterTypes = ["Sunset cruise","Half-day charter","Full-day escape","Corporate outing","Celebration"];
+  var reconExtras = ["Membership dues","Sailing course","Brokerage","Other"];
+  function fillSelect(id, arr){
+    var cur=$(id).value;
+    $(id).innerHTML=arr.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join("");
+    if(cur && arr.indexOf(cur)>=0) $(id).value=cur;
+  }
+  function renderTypes(){
+    fillSelect("c-type", charterTypes);
+    fillSelect("r-src", charterTypes.concat(reconExtras));
+    $("type-chips").innerHTML=charterTypes.map(function(t){ return '<span class="type-chip">'+esc(t)+'<button data-t="'+esc(t)+'" aria-label="Remove">&times;</button></span>'; }).join("");
+    $("type-chips").querySelectorAll("button").forEach(function(b){ b.addEventListener("click", function(){ var t=b.getAttribute("data-t"); charterTypes=charterTypes.filter(function(x){ return x!==t; }); renderTypes(); }); });
+  }
+  function initCharterTypes(){
+    $("ct-add").addEventListener("click", function(){
+      var t=$("ct-new").value.trim();
+      if(!t){ $("ct-msg").style.color="var(--bad)"; $("ct-msg").textContent="Enter a charter type."; return; }
+      if(charterTypes.indexOf(t)>=0){ $("ct-msg").style.color="var(--bad)"; $("ct-msg").textContent="That type already exists."; return; }
+      charterTypes.push(t); $("ct-new").value="";
+      $("ct-msg").style.color="var(--good)"; $("ct-msg").textContent="Type added. It now appears in the charter form and the reconciliation source.";
+      renderTypes();
+    });
+  }
+
+  // ----- router -----
+  var views={dash:"view-dash", financials:"view-financials", vessels:"view-vessels", vdetail:"view-vdetail", charters:"view-charters", membership:"view-membership", sailing:"view-sailing", captains:"view-captains", brokerage:"view-brokerage", expenses:"view-expenses", payroll:"view-payroll", owners:"view-owners", recon:"view-recon", close:"view-close"};
+  function activate(viewKey, navKey){
+    Object.keys(views).forEach(function(k){ $(views[k]).classList.toggle("active", k===viewKey); });
+    document.querySelectorAll(".nav-i").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-view")===(navKey||viewKey)); });
+  }
+  function go(v){ activate(v); window.scrollTo(0,0); }
+  document.querySelectorAll(".nav-i").forEach(function(b){ b.addEventListener("click", function(){ go(b.getAttribute("data-view")); }); });
+  $("vd-back").addEventListener("click", function(){ go("vessels"); });
+
+  // ----- init -----
+  initCharters(); initExpenses(); initPayroll(); initOwners(); initMembership(); initAddVessel(); initAddCaptain(); initAddPay(); initAddCourse(); initAddRecon(); initCharterTypes(); renderTypes(); initRefunds(); initImport();
+  renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage();
+  renderDash(); renderFinancials(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderOwner(); renderRecon(); renderClose();
+</script>
