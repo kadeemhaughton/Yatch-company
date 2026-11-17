@@ -201,6 +201,19 @@
   .period .plab{font-size:10.5px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--faint); flex:none}
   .period .segwrap{overflow-x:auto; max-width:100%; -webkit-overflow-scrolling:touch}
   .period .seg{white-space:nowrap}
+
+  /* Entity switcher */
+  .ent-sel{font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink); background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:4px 26px 4px 9px; cursor:pointer; max-width:240px; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center}
+  .ent-sel:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+
+  /* Aging summary (A/P + A/R) */
+  .aging{display:grid; grid-template-columns:repeat(5,1fr); gap:10px}
+  @media (max-width:620px){.aging{grid-template-columns:repeat(2,1fr)}}
+  .ag{border:1px solid var(--line); border-radius:7px; padding:9px 11px; background:var(--raised)}
+  .ag .agk{font-size:10.5px; color:var(--muted); font-weight:500}
+  .ag .agv{font-size:15px; font-weight:600; margin-top:3px; color:var(--ink)}
+  .ag.warn{background:var(--warn-bg); border-color:transparent} .ag.warn .agv{color:var(--warn)}
+  .ag.bad{background:var(--bad-bg); border-color:transparent} .ag.bad .agv{color:var(--bad)}
 </style>
 
 <div class="app">
@@ -214,6 +227,7 @@
       <div class="nav-lab">Overview</div>
       <button class="nav-i on" data-view="dash"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>Dashboard</button>
       <button class="nav-i" data-view="financials"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16l3.5-4 3 2.5L20 8"/></svg></span>Financials</button>
+      <button class="nav-i" data-view="cashflow"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18"/><path d="M16 7.5H10a2.5 2.5 0 0 0 0 5h4a2.5 2.5 0 0 1 0 5H8"/></svg></span>Cash Flow</button>
     </div>
 
     <div class="nav-grp">
@@ -230,6 +244,8 @@
       <button class="nav-i" data-view="vessels"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15l2-6h14l2 6"/><path d="M3 15a9 5 0 0 0 18 0"/><path d="M12 9V4l5 2-5 3"/></svg></span>Vessels</button>
       <button class="nav-i" data-view="expenses"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>Expenses</button>
       <button class="nav-i" data-view="payroll"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>Payroll</button>
+      <button class="nav-i" data-view="payables"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg></span>Accounts Payable</button>
+      <button class="nav-i" data-view="receivables"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/></svg></span>Accounts Receivable</button>
     </div>
 
     <div class="nav-grp">
@@ -244,7 +260,7 @@
 
   <div class="body">
     <div class="topbar">
-      <div class="ctx">Client: <b>[Yacht company, to be named]</b> &nbsp;&middot;&nbsp; Gulf Coast, FL</div>
+      <div class="ctx">Entity: <select id="entity-sel" class="ent-sel" aria-label="Active entity"></select> &nbsp;&middot;&nbsp; Gulf Coast, FL</div>
       <div class="right">
         <span class="chip">Period: <b style="color:var(--ink)">Nov 2026</b></span>
         <span class="chip env">Sample data</span>
@@ -343,6 +359,10 @@
           <div class="card-h"><h2>Owner Distribution</h2></div>
           <div class="card-b" id="vd-dist"></div>
         </div>
+        <div class="card">
+          <div class="card-h"><h2>Vessel Cash Flow</h2><span class="hint">Cash basis, this month</span></div>
+          <div class="card-b" id="vd-cashflow"></div>
+        </div>
       </section>
 
       <!-- CHARTERS -->
@@ -440,6 +460,60 @@
           <div class="card-h"><h2>Pay Run for week ending <span id="wk-label"></span></h2><span class="hint" id="wk-total"></span></div>
           <div class="card-b flush"><div class="tbl-wrap"><table class="t" id="payroll-tbl"></table></div></div>
         </div>
+      </section>
+
+      <!-- CASH FLOW -->
+      <section class="view" id="view-cashflow">
+        <div class="vhead">
+          <div><h1>Cash Flow by Vessel</h1><div class="sub">Cash in from charter collections against cash out for expenses, captain fees, the management fee, and owner distributions, per vessel, with opening and closing balances.</div></div>
+          <div class="period"><span class="plab">Period</span><div class="segwrap"><div class="seg" id="cf-period"></div></div></div>
+        </div>
+        <div class="kpis" id="cf-kpis"></div>
+        <div class="card"><div class="card-h"><h2>Per-Vessel Cash Flow</h2><span class="hint">Cash basis</span></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="cf-tbl"></table></div></div></div>
+        <div class="card"><div class="card-b"><div class="note" id="cf-note"></div></div></div>
+      </section>
+
+      <!-- ACCOUNTS PAYABLE -->
+      <section class="view" id="view-payables">
+        <div class="vhead"><div><h1>Accounts Payable</h1><div class="sub">Vendor bills with due dates and aging. Approve bills into a payment batch; nothing is marked paid until it is reviewed and released.</div></div></div>
+        <div class="kpis" id="ap-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Record a Vendor Bill</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="ap-vendor">Vendor</label><input type="text" id="ap-vendor" placeholder="e.g. Reliant Marine Repair"></div>
+              <div class="f"><label for="ap-alloc">Allocation</label><select id="ap-alloc"></select></div>
+              <div class="f"><label for="ap-bdate">Bill date</label><input type="date" id="ap-bdate" value="2026-11-16"></div>
+              <div class="f"><label for="ap-due">Due date</label><input type="date" id="ap-due" value="2026-12-01"></div>
+              <div class="f"><label for="ap-amt">Amount ($)</label><input type="number" id="ap-amt" placeholder="0" min="0"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="ap-add">Add bill</button><button class="btn ghost" id="ap-batch">Approve batch (due within 7 days)</button><span class="msg" id="ap-msg"></span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Aging Summary</h2><span class="hint">Open bills by days past due</span></div><div class="card-b" id="ap-aging"></div></div>
+        <div class="card"><div class="card-h"><h2>Open &amp; Paid Bills</h2></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="ap-tbl"></table></div></div></div>
+      </section>
+
+      <!-- ACCOUNTS RECEIVABLE -->
+      <section class="view" id="view-receivables">
+        <div class="vhead"><div><h1>Accounts Receivable</h1><div class="sub">Customer invoices with due dates and aging across every division. Record a payment when it clears the bank.</div></div></div>
+        <div class="kpis" id="ar-kpis"></div>
+        <div class="card">
+          <div class="card-h"><h2>Raise an Invoice</h2></div>
+          <div class="card-b">
+            <div class="grid">
+              <div class="f"><label for="ar-cust">Customer</label><input type="text" id="ar-cust" placeholder="e.g. Meridian Capital"></div>
+              <div class="f"><label for="ar-div">Division</label><select id="ar-div"><option>Charter</option><option>Membership</option><option>Sailing school</option><option>Captain services</option><option>Brokerage</option><option>Other</option></select></div>
+              <div class="f"><label for="ar-vessel">Vessel (optional)</label><select id="ar-vessel"></select></div>
+              <div class="f"><label for="ar-idate">Invoice date</label><input type="date" id="ar-idate" value="2026-11-16"></div>
+              <div class="f"><label for="ar-due">Due date</label><input type="date" id="ar-due" value="2026-12-01"></div>
+              <div class="f"><label for="ar-amt">Amount ($)</label><input type="number" id="ar-amt" placeholder="0" min="0"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="ar-add">Add invoice</button><span class="msg" id="ar-msg"></span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-h"><h2>Aging Summary</h2><span class="hint">Open invoices by days past due</span></div><div class="card-b" id="ar-aging"></div></div>
+        <div class="card"><div class="card-h"><h2>Open &amp; Paid Invoices</h2></div><div class="card-b flush"><div class="tbl-wrap"><table class="t" id="ar-tbl"></table></div></div></div>
       </section>
 
       <!-- OWNER REPORTS -->
@@ -711,6 +785,30 @@
     {item:"Software &amp; subscriptions", amt:720},
     {item:"Marketing &amp; web", amt:950}
   ];
+  var apid=1;
+  var apBills = [
+    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"ab", billDate:"2026-10-05", due:"2026-11-04", amt:4900, status:"Open"},
+    {id:apid++, vendor:"Marina Fuel Dock",           vesselId:"gs", billDate:"2026-11-02", due:"2026-11-12", amt:2400, status:"Open"},
+    {id:apid++, vendor:"Sarasota Bay Marina",        vesselId:"gs", billDate:"2026-11-08", due:"2026-11-23", amt:600,  status:"Open"},
+    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"mb", billDate:"2026-11-10", due:"2026-11-25", amt:500,  status:"Open"},
+    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"gs", billDate:"2026-09-05", due:"2026-09-10", amt:1500, status:"Open"},
+    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"ab", billDate:"2026-09-25", due:"2026-10-05", amt:430,  status:"Open"},
+    {id:apid++, vendor:"Coastal Insurance Partners", vesselId:"",   billDate:"2026-11-01", due:"2026-12-01", amt:2800, status:"Open"},
+    {id:apid++, vendor:"Naples City Dock",           vesselId:"sp", billDate:"2026-10-28", due:"2026-11-12", amt:650,  status:"Open"},
+    {id:apid++, vendor:"BlueWave Detailing",         vesselId:"sp", billDate:"2026-08-20", due:"2026-09-19", amt:800,  status:"Paid", paidDate:"2026-09-25"}
+  ];
+  var arid=1;
+  var arInvoices = [
+    {id:arid++, customer:"Meridian Capital", division:"Charter",    vesselId:"gs", invDate:"2026-11-04", due:"2026-11-19", amt:5400, status:"Open"},
+    {id:arid++, customer:"Atwater Group",    division:"Charter",    vesselId:"gs", invDate:"2026-10-20", due:"2026-11-04", amt:5280, status:"Open"},
+    {id:arid++, customer:"Lang Group",       division:"Charter",    vesselId:"ab", invDate:"2026-11-06", due:"2026-11-21", amt:8800, status:"Open"},
+    {id:arid++, customer:"Okonkwo Wedding",  division:"Charter",    vesselId:"ab", invDate:"2026-09-28", due:"2026-10-13", amt:4900, status:"Open"},
+    {id:arid++, customer:"Summit LLC",       division:"Charter",    vesselId:"sp", invDate:"2026-11-10", due:"2026-11-25", amt:3600, status:"Open"},
+    {id:arid++, customer:"Coastal Group",    division:"Membership", vesselId:"",   invDate:"2026-08-30", due:"2026-09-14", amt:8400, status:"Open"},
+    {id:arid++, customer:"Vantage Corp",     division:"Charter",    vesselId:"sp", invDate:"2026-10-30", due:"2026-11-14", amt:2600, status:"Open"},
+    {id:arid++, customer:"Pierce Family",    division:"Charter",    vesselId:"gs", invDate:"2026-11-01", due:"2026-11-10", amt:5760, status:"Paid", paidDate:"2026-11-09"}
+  ];
+  var openingCash = {gs:48500, ab:33200, sp:36800, mb:22400};
 
   // ----- lookups / calcs -----
   function vessel(id){ for(var i=0;i<vessels.length;i++) if(vessels[i].id===id) return vessels[i]; }
@@ -776,13 +874,13 @@
   }
   function periodNote(p){ return ({week:"Last 7 days", month:"Nov MTD", quarter:"Last 3 months", half:"Last 6 months", year:"Trailing 12 mo"})[p]; }
   function renderPeriodControls(){
-    ["dash-period","fin-period"].forEach(function(id){
+    ["dash-period","fin-period","cf-period"].forEach(function(id){
       var el=$(id); if(!el) return;
       el.innerHTML = PERIODS.map(function(x){ return '<button type="button" data-p="'+x.k+'"'+(x.k===curPeriod?' class="on"':'')+'>'+x.t+'</button>'; }).join("");
       el.querySelectorAll("button").forEach(function(b){ b.addEventListener("click", function(){ setPeriod(b.getAttribute("data-p")); }); });
     });
   }
-  function setPeriod(p){ if(!periodMonthCount[p]) return; curPeriod=p; renderPeriodControls(); renderDash(); renderFinancials(); }
+  function setPeriod(p){ if(!periodMonthCount[p]) return; curPeriod=p; renderPeriodControls(); renderDash(); renderFinancials(); renderCashflow(); }
   function statusTag(s){
     var k = s==="Paid"||s==="Matched"?"good":(s==="Pending"||s==="Variance"?"warn":(s==="Unmatched"?"bad":(s==="Approved"?"acc":"mut")));
     return '<span class="tag '+k+'">'+esc(s)+'</span>';
@@ -879,6 +977,18 @@
       +'<div class="sr ind"><span class="l">Company share ('+(100-v.ownerPct)+'%)</span><span class="v">'+money(c.coShare)+'</span></div>'
       +'<div class="payout"><span class="k">Owner net payout</span><span class="v num">'+money(c.ownerShare)+'</span></div>'
       +svcNote;
+
+    var vcf=vCashflow(v,"month");
+    if($("vd-cashflow")) $("vd-cashflow").innerHTML =
+      '<div class="sr"><span class="l">Opening cash balance</span><span class="v">'+money(vcf.begin)+'</span></div>'
+      +'<div class="sr"><span class="l">Charter collections</span><span class="v">'+money(vcf.collections)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Operating expenses paid</span><span class="v">'+money(-vcf.opOut)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Captain fees paid</span><span class="v">'+money(-vcf.capOut)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Management fee</span><span class="v">'+money(-vcf.mgmtOut)+'</span></div>'
+      +'<div class="sr ded"><span class="l">Owner distribution paid</span><span class="v">'+money(-vcf.ownerOut)+'</span></div>'
+      +'<div class="sr tot"><span class="l">Net change in cash</span><span class="v">'+money(vcf.net)+'</span></div>'
+      +'<div class="payout"><span class="k">Closing cash balance</span><span class="v num">'+money(vcf.end)+'</span></div>'
+      +'<div class="note" style="margin-top:8px">Cash basis, this month. Charter revenue assumed collected and listed expenses paid within the month.</div>';
   }
 
   function receiptCell(e){
@@ -969,6 +1079,8 @@
   }
   function renderOwner(){
     var oid=$("o-owner").value, o=owner(oid);
+    if(!o){ o=owners[0]; oid=o?o.id:""; if(o&&$("o-owner")) $("o-owner").value=oid; }
+    if(!o){ $("owner-report").innerHTML=""; return; }
     var mine=vessels.filter(function(v){ return v.ownerId===oid; });
     var totalDue=0; mine.forEach(function(v){ totalDue+=vCalc(v).ownerShare; });
     var html='<div class="card"><div class="card-h"><h2>Owner report: '+esc(o.name)+'</h2><span class="hint">'+(o.email?esc(o.email)+' &middot; ':'')+'Period Nov 2026 &middot; '+mine.length+' vessel'+(mine.length>1?'s':'')+'</span></div>'
@@ -1344,13 +1456,17 @@
   }
   function initImport(){ $("imp-load").addEventListener("click", loadProcReport); $("imp-approve-all").addEventListener("click", approveAllMatched); renderImport(); }
 
-  function refreshAll(){ renderDash(); renderFinancials(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage(); renderOwner(); renderRecon(); renderDivisions(); }
+  function refreshAll(){ renderDash(); renderFinancials(); renderCashflow(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage(); renderOwner(); renderRecon(); renderDivisions(); renderPayables(); renderReceivables(); }
   function refreshSelects(){
     var cv=$("c-vessel").value, ev=$("e-vessel").value, ov=$("o-owner").value;
     var vopt=vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("");
     $("c-vessel").innerHTML=vopt; $("e-vessel").innerHTML=vopt;
     $("o-owner").innerHTML=owners.map(function(o){ return '<option value="'+o.id+'">'+esc(o.name)+'</option>'; }).join("");
-    if(cv) $("c-vessel").value=cv; if(ev) $("e-vessel").value=ev; if(ov) $("o-owner").value=ov;
+    if($("ap-alloc")) $("ap-alloc").innerHTML=vopt+'<option value="">Company / overhead</option>';
+    if($("ar-vessel")) $("ar-vessel").innerHTML='<option value="">Not vessel-specific</option>'+vopt;
+    if(cv && vessels.some(function(v){ return v.id===cv; })) $("c-vessel").value=cv;
+    if(ev && vessels.some(function(v){ return v.id===ev; })) $("e-vessel").value=ev;
+    if(ov && owners.some(function(o){ return o.id===ov; })) $("o-owner").value=ov;
   }
   var vseq=1;
   function findOrCreateOwner(name, email){
@@ -1416,8 +1532,206 @@
     });
   }
 
+  // ===== Accounts Payable / Receivable, Cash Flow, Multi-entity =====
+  function agingBucket(due){ var over=-daysUntil(due); if(over<=0) return "Current"; if(over<=30) return "1-30"; if(over<=60) return "31-60"; if(over<=90) return "61-90"; return "90+"; }
+  function agingTag(due, paid){ if(paid) return '<span class="tag good">Paid</span>'; var d=daysUntil(due), over=-d; if(over<=0) return '<span class="tag mut">Due in '+d+'d</span>'; return '<span class="tag '+(over<=30?"warn":"bad")+'">'+over+'d overdue</span>'; }
+  function apStatusTag(s){ var k=s==="Paid"?"good":(s==="Scheduled"?"acc":"mut"); return '<span class="tag '+k+'">'+esc(s)+'</span>'; }
+  function agingStrip(b){
+    var order=[["Current",""],["1-30","warn"],["31-60","warn"],["61-90","bad"],["90+","bad"]];
+    return '<div class="aging">'+order.map(function(o){ return '<div class="ag'+(o[1]?" "+o[1]:"")+'"><div class="agk">'+o[0]+(o[0]==="Current"?"":" days")+'</div><div class="agv num">'+money(b[o[0]]||0)+'</div></div>'; }).join("")+'</div>';
+  }
+  function allocName(id){ if(!id) return "Company"; var v=vessel(id); return v?v.name:"Company"; }
+
+  // ----- Accounts Payable -----
+  function renderPayables(){
+    if(!$("ap-tbl")) return;
+    var open=apBills.filter(function(b){ return b.status!=="Paid"; });
+    var totalPay=open.reduce(function(s,b){ return s+b.amt; },0);
+    var overdue=open.filter(function(b){ return daysUntil(b.due)<0; }).reduce(function(s,b){ return s+b.amt; },0);
+    var due7=open.filter(function(b){ var d=daysUntil(b.due); return d>=0&&d<=7; }).reduce(function(s,b){ return s+b.amt; },0);
+    var scheduled=apBills.filter(function(b){ return b.status==="Scheduled"; }).reduce(function(s,b){ return s+b.amt; },0);
+    $("ap-kpis").innerHTML=[
+      {k:"Total payable", v:money(totalPay), d:open.length+" open bills"},
+      {k:"Overdue", v:money(overdue), d:"Past due date"},
+      {k:"Due within 7 days", v:money(due7), d:"Plan next batch"},
+      {k:"Scheduled for payment", v:money(scheduled), d:"Approved, awaiting run"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
+    var buckets={}; open.forEach(function(b){ var k=agingBucket(b.due); buckets[k]=(buckets[k]||0)+b.amt; });
+    $("ap-aging").innerHTML=agingStrip(buckets);
+    var rows='<tr><th>Vendor</th><th>Allocation</th><th>Bill date</th><th>Due date</th><th class="r">Amount</th><th>Aging</th><th>Status</th><th class="r">Action</th></tr>';
+    apBills.slice().sort(function(a,b){ return a.due<b.due?-1:1; }).forEach(function(b){
+      var action;
+      if(b.status==="Paid") action='<span class="none">Paid '+esc(b.paidDate||"")+'</span>';
+      else if(b.status==="Scheduled") action='<button class="btn" style="padding:4px 10px" data-ap-pay="'+b.id+'">Mark paid</button> <button class="del" data-ap-del="'+b.id+'">Remove</button>';
+      else action='<button class="btn ghost" style="padding:4px 10px" data-ap-approve="'+b.id+'">Approve for payment</button> <button class="del" data-ap-del="'+b.id+'">Remove</button>';
+      rows+='<tr><td class="strong">'+esc(b.vendor)+'</td><td>'+esc(allocName(b.vesselId))+'</td><td>'+esc(b.billDate)+'</td><td>'+esc(b.due)+'</td>'
+        +'<td class="r num">'+money(b.amt)+'</td><td>'+agingTag(b.due, b.status==="Paid")+'</td><td>'+apStatusTag(b.status)+'</td><td class="r">'+action+'</td></tr>';
+    });
+    rows+='<tr><td colspan="4" class="strong">Total open payable</td><td class="r num strong">'+money(totalPay)+'</td><td colspan="3"></td></tr>';
+    $("ap-tbl").innerHTML=rows;
+    $("ap-tbl").querySelectorAll("[data-ap-approve]").forEach(function(btn){ btn.addEventListener("click", function(){ var b=apBills.filter(function(x){ return x.id==btn.getAttribute("data-ap-approve"); })[0]; if(b){ b.status="Scheduled"; renderPayables(); } }); });
+    $("ap-tbl").querySelectorAll("[data-ap-pay]").forEach(function(btn){ btn.addEventListener("click", function(){ var b=apBills.filter(function(x){ return x.id==btn.getAttribute("data-ap-pay"); })[0]; if(b){ b.status="Paid"; b.paidDate="2026-11-16"; renderPayables(); } }); });
+    $("ap-tbl").querySelectorAll("[data-ap-del]").forEach(function(btn){ btn.addEventListener("click", function(){ var id=btn.getAttribute("data-ap-del"); apBills=apBills.filter(function(x){ return x.id!=id; }); renderPayables(); }); });
+  }
+  function initAddBill(){
+    if($("ap-alloc")) $("ap-alloc").innerHTML = vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("")+'<option value="">Company / overhead</option>';
+    $("ap-add").addEventListener("click", function(){
+      var vn=$("ap-vendor").value.trim(), a=parseFloat($("ap-amt").value);
+      if(!vn||isNaN(a)||a<=0){ $("ap-msg").style.color="var(--bad)"; $("ap-msg").textContent="Enter a vendor and an amount above zero."; return; }
+      apBills.push({id:apid++, vendor:vn, vesselId:$("ap-alloc").value, billDate:$("ap-bdate").value||"2026-11-16", due:$("ap-due").value||"2026-12-01", amt:a, status:"Open"});
+      $("ap-vendor").value=""; $("ap-amt").value="";
+      $("ap-msg").style.color="var(--good)"; $("ap-msg").textContent="Bill recorded in payables.";
+      renderPayables();
+    });
+    $("ap-batch").addEventListener("click", function(){
+      var n=0; apBills.forEach(function(b){ if(b.status==="Open" && daysUntil(b.due)<=7){ b.status="Scheduled"; n++; } });
+      $("ap-msg").style.color="var(--good)"; $("ap-msg").textContent=n?(n+" bill"+(n>1?"s":"")+" approved into the payment batch."):"No open bills are due within 7 days.";
+      renderPayables();
+    });
+  }
+
+  // ----- Accounts Receivable -----
+  function renderReceivables(){
+    if(!$("ar-tbl")) return;
+    var open=arInvoices.filter(function(b){ return b.status!=="Paid"; });
+    var totalRec=open.reduce(function(s,b){ return s+b.amt; },0);
+    var overdue=open.filter(function(b){ return daysUntil(b.due)<0; }).reduce(function(s,b){ return s+b.amt; },0);
+    var due7=open.filter(function(b){ var d=daysUntil(b.due); return d>=0&&d<=7; }).reduce(function(s,b){ return s+b.amt; },0);
+    var collected=arInvoices.filter(function(b){ return b.status==="Paid"; }).reduce(function(s,b){ return s+b.amt; },0);
+    $("ar-kpis").innerHTML=[
+      {k:"Total receivable", v:money(totalRec), d:open.length+" open invoices"},
+      {k:"Overdue", v:money(overdue), d:"Past due date"},
+      {k:"Due within 7 days", v:money(due7), d:"Expected inflow"},
+      {k:"Collected", v:money(collected), d:"Paid invoices"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
+    var buckets={}; open.forEach(function(b){ var k=agingBucket(b.due); buckets[k]=(buckets[k]||0)+b.amt; });
+    $("ar-aging").innerHTML=agingStrip(buckets);
+    var rows='<tr><th>Customer</th><th>Division</th><th>Vessel</th><th>Invoice date</th><th>Due date</th><th class="r">Amount</th><th>Aging</th><th>Status</th><th class="r">Action</th></tr>';
+    arInvoices.slice().sort(function(a,b){ return a.due<b.due?-1:1; }).forEach(function(b){
+      var action;
+      if(b.status==="Paid") action='<span class="none">Paid '+esc(b.paidDate||"")+'</span>';
+      else action='<button class="btn" style="padding:4px 10px" data-ar-pay="'+b.id+'">Record payment</button> <button class="del" data-ar-del="'+b.id+'">Remove</button>';
+      rows+='<tr><td class="strong">'+esc(b.customer)+'</td><td>'+esc(b.division||"")+'</td><td>'+(b.vesselId?esc(allocName(b.vesselId)):'<span class="none">Company-wide</span>')+'</td><td>'+esc(b.invDate)+'</td><td>'+esc(b.due)+'</td>'
+        +'<td class="r num">'+money(b.amt)+'</td><td>'+agingTag(b.due, b.status==="Paid")+'</td><td>'+apStatusTag(b.status)+'</td><td class="r">'+action+'</td></tr>';
+    });
+    rows+='<tr><td colspan="5" class="strong">Total open receivable</td><td class="r num strong">'+money(totalRec)+'</td><td colspan="3"></td></tr>';
+    $("ar-tbl").innerHTML=rows;
+    $("ar-tbl").querySelectorAll("[data-ar-pay]").forEach(function(btn){ btn.addEventListener("click", function(){ var b=arInvoices.filter(function(x){ return x.id==btn.getAttribute("data-ar-pay"); })[0]; if(b){ b.status="Paid"; b.paidDate="2026-11-16"; renderReceivables(); } }); });
+    $("ar-tbl").querySelectorAll("[data-ar-del]").forEach(function(btn){ btn.addEventListener("click", function(){ var id=btn.getAttribute("data-ar-del"); arInvoices=arInvoices.filter(function(x){ return x.id!=id; }); renderReceivables(); }); });
+  }
+  function initAddInvoice(){
+    if($("ar-vessel")) $("ar-vessel").innerHTML = '<option value="">Not vessel-specific</option>'+vessels.map(function(v){ return '<option value="'+v.id+'">'+esc(v.name)+'</option>'; }).join("");
+    $("ar-add").addEventListener("click", function(){
+      var cu=$("ar-cust").value.trim(), a=parseFloat($("ar-amt").value);
+      if(!cu||isNaN(a)||a<=0){ $("ar-msg").style.color="var(--bad)"; $("ar-msg").textContent="Enter a customer and an amount above zero."; return; }
+      arInvoices.push({id:arid++, customer:cu, division:$("ar-div").value, vesselId:$("ar-vessel").value, invDate:$("ar-idate").value||"2026-11-16", due:$("ar-due").value||"2026-12-01", amt:a, status:"Open"});
+      $("ar-cust").value=""; $("ar-amt").value="";
+      $("ar-msg").style.color="var(--good)"; $("ar-msg").textContent="Invoice raised in receivables.";
+      renderReceivables();
+    });
+  }
+
+  // ----- Cash flow (per vessel) -----
+  function vCashflow(v, period){
+    var c=vCalcP(v, period||"month");
+    var begin=(openingCash&&openingCash[v.id])||0;
+    var net=c.gross - c.opExp - c.capExp - c.mgmtFee - c.ownerShare;
+    return {begin:begin, collections:c.gross, opOut:c.opExp, capOut:c.capExp, mgmtOut:c.mgmtFee, ownerOut:c.ownerShare, net:net, end:begin+net};
+  }
+  function renderCashflow(){
+    if(!$("cf-tbl")) return;
+    var p=curPeriod, note=periodNote(p);
+    var tBegin=0,tCol=0,tOp=0,tCap=0,tMgmt=0,tOwner=0,tNet=0,tEnd=0;
+    var rows='<tr><th>Vessel</th><th class="r">Opening</th><th class="r">Collections</th><th class="r">Operating</th><th class="r">Captain</th><th class="r">Mgmt fee</th><th class="r">Owner dist</th><th class="r">Net change</th><th class="r">Closing</th></tr>';
+    vessels.forEach(function(v){
+      var cf=vCashflow(v,p);
+      tBegin+=cf.begin; tCol+=cf.collections; tOp+=cf.opOut; tCap+=cf.capOut; tMgmt+=cf.mgmtOut; tOwner+=cf.ownerOut; tNet+=cf.net; tEnd+=cf.end;
+      rows+='<tr><td class="strong">'+esc(v.name)+'</td><td class="r num">'+money(cf.begin)+'</td><td class="r num">'+money(cf.collections)+'</td>'
+        +'<td class="r num">'+money(-cf.opOut)+'</td><td class="r num">'+money(-cf.capOut)+'</td><td class="r num">'+money(-cf.mgmtOut)+'</td><td class="r num">'+money(-cf.ownerOut)+'</td>'
+        +'<td class="r num strong" style="color:'+(cf.net<0?"var(--bad)":"var(--ink)")+'">'+money(cf.net)+'</td><td class="r num strong">'+money(cf.end)+'</td></tr>';
+    });
+    rows+='<tr><td class="strong">Fleet total</td><td class="r num strong">'+money(tBegin)+'</td><td class="r num strong">'+money(tCol)+'</td><td class="r num strong">'+money(-tOp)+'</td><td class="r num strong">'+money(-tCap)+'</td><td class="r num strong">'+money(-tMgmt)+'</td><td class="r num strong">'+money(-tOwner)+'</td><td class="r num strong">'+money(tNet)+'</td><td class="r num strong">'+money(tEnd)+'</td></tr>';
+    $("cf-tbl").innerHTML=rows;
+    $("cf-kpis").innerHTML=[
+      {k:"Cash collected", v:money(tCol), d:note},
+      {k:"Cash disbursed", v:money(tOp+tCap+tMgmt+tOwner), d:"Expenses, captain, fees, owners"},
+      {k:"Net cash flow", v:money(tNet), d:"Across fleet"},
+      {k:"Closing cash", v:money(tEnd), d:"Combined balances"}
+    ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
+    $("cf-note").innerHTML="Cash basis. Collections assume charter revenue received in the period and expenses paid in the period. <b>Net change</b> is the cash retained in each vessel's operating account after vendor costs, captain fees, the management fee, and the owner distribution. Opening balances carry per vessel.";
+  }
+
+  // ----- Multi-entity books -----
+  var ENTITIES=[{id:"e1",name:"Gulf Coast Yacht Group LLC"},{id:"e2",name:"Mariner Holdings LLC"}];
+  var curEntity="e1";
+  var BOOKS={
+    e1:{owners:owners, vessels:vessels, charters:charters, expenses:expenses, payWeeks:payWeeks, recon:recon, refunds:refunds, overhead:overhead, members:members, courses:courses, capList:capList, deals:deals, apBills:apBills, arInvoices:arInvoices, openingCash:openingCash},
+    e2:(function(){
+      var ow=[{id:"h1",name:"Mariner Holdings LLC",email:"finance@marinerholdings.example.com"},{id:"h2",name:"K. Delacroix",email:"k.delacroix@example.com"}];
+      var vs=[
+        {id:"nw", name:"M/Y Northern Wind",     hin:"NWND2290P127", reg:"FL 2290 NW", ownerId:"h1", mgmt:22, ownerPct:68, capMode:"expense", status:"Active"},
+        {id:"tc", name:"S/Y Tradewind Calypso", hin:"TRWC7788Q328", reg:"FL 7788 TC", ownerId:"h2", mgmt:20, ownerPct:70, capMode:"service", status:"Active"}
+      ];
+      var ch=[
+        {id:cid++, vesselId:"nw", date:"2026-11-05", ctype:"Corporate outing", client:"Atlas Freight Co.", hours:6, rate:1000},
+        {id:cid++, vesselId:"nw", date:"2026-11-13", ctype:"Full-day escape",  client:"Northgate LLC",     hours:8, rate:850},
+        {id:cid++, vesselId:"nw", date:"2026-11-19", ctype:"Sunset cruise",    client:"Private",          hours:3, rate:800},
+        {id:cid++, vesselId:"tc", date:"2026-11-07", ctype:"Celebration",      client:"Delmar Events",    hours:5, rate:900},
+        {id:cid++, vesselId:"tc", date:"2026-11-16", ctype:"Half-day charter", client:"Keller Group",     hours:4, rate:700}
+      ];
+      var ex=[
+        {id:eid++, vesselId:"nw", date:"2026-11-06", cat:"Fuel",          vendor:"Harbor Diesel Supply", amt:2200, reimb:true,  rc:null},
+        {id:eid++, vesselId:"nw", date:"2026-11-09", cat:"Crew / captain", vendor:"Capt. T. Brandt",      amt:2800, reimb:false, rc:null},
+        {id:eid++, vesselId:"nw", date:"2026-11-12", cat:"Dockage",       vendor:"Harbor Point Marina",  amt:700,  reimb:true,  rc:null},
+        {id:eid++, vesselId:"tc", date:"2026-11-08", cat:"Fuel",          vendor:"Harbor Diesel Supply", amt:1600, reimb:true,  rc:null},
+        {id:eid++, vesselId:"tc", date:"2026-11-10", cat:"Crew / captain", vendor:"Capt. E. Salas",       amt:2400, reimb:false, rc:null},
+        {id:eid++, vesselId:"tc", date:"2026-11-14", cat:"Maintenance",   vendor:"Tradewind Rigging",    amt:1200, reimb:true,  rc:null}
+      ];
+      var pw=[{ending:"Nov 14, 2026", lines:[
+        {name:"Capt. T. Brandt", role:"Captain", assign:"M/Y Northern Wind",     type:"Contract", hours:null, rate:null, amt:900, status:"Paid"},
+        {name:"Capt. E. Salas",  role:"Captain", assign:"S/Y Tradewind Calypso", type:"Contract", hours:null, rate:null, amt:850, status:"Approved"},
+        {name:"R. Pike",         role:"Deckhand", assign:"Fleet relief",         type:"Hourly",   hours:18, rate:27, amt:486, status:"Pending"}
+      ]}];
+      var rc=[
+        {id:rseq++, date:"2026-11-05", src:"Corporate outing", proc:"Stripe", booked:6000, fee:174.30, bank:5825.70},
+        {id:rseq++, date:"2026-11-16", src:"Half-day charter", proc:"Square", booked:2800, fee:72.90,  bank:0}
+      ];
+      var oh=[{item:"Entity admin &amp; filing", amt:600},{item:"Insurance (holding co.)", amt:1400}];
+      var cl=[
+        {name:"Capt. T. Brandt", lic:"1902335", status:"Assigned", assign:"M/Y Northern Wind",     bill:470, pay:360},
+        {name:"Capt. E. Salas",  lic:"1847559", status:"Assigned", assign:"S/Y Tradewind Calypso", bill:450, pay:350}
+      ];
+      var ap=[
+        {id:apid++, vendor:"Harbor Diesel Supply",  vesselId:"nw", billDate:"2026-10-28", due:"2026-11-12", amt:2200, status:"Open"},
+        {id:apid++, vendor:"Gulf Marine Insurance", vesselId:"",   billDate:"2026-11-01", due:"2026-12-01", amt:1400, status:"Open"},
+        {id:apid++, vendor:"Tradewind Rigging",     vesselId:"tc", billDate:"2026-09-22", due:"2026-10-07", amt:1200, status:"Open"}
+      ];
+      var ar=[
+        {id:arid++, customer:"Atlas Freight Co.", division:"Charter", vesselId:"nw", invDate:"2026-11-05", due:"2026-11-20", amt:6000, status:"Open"},
+        {id:arid++, customer:"Delmar Events",     division:"Charter", vesselId:"tc", invDate:"2026-10-18", due:"2026-11-02", amt:4500, status:"Open"},
+        {id:arid++, customer:"Northgate LLC",     division:"Charter", vesselId:"nw", invDate:"2026-11-01", due:"2026-11-10", amt:6800, status:"Paid", paidDate:"2026-11-08"}
+      ];
+      return {owners:ow, vessels:vs, charters:ch, expenses:ex, payWeeks:pw, recon:rc, refunds:[], overhead:oh, members:[], courses:[], capList:cl, deals:[], apBills:ap, arInvoices:ar, openingCash:{nw:51000, tc:38000}};
+    })()
+  };
+  function renderEntity(){
+    var sel=$("entity-sel"); if(!sel) return;
+    sel.innerHTML=ENTITIES.map(function(e){ return '<option value="'+e.id+'">'+esc(e.name)+'</option>'; }).join("");
+    sel.value=curEntity;
+    sel.onchange=function(){ loadEntity(sel.value); };
+  }
+  function loadEntity(id){
+    var bk=BOOKS[id]; if(!bk) return; curEntity=id;
+    owners=bk.owners; vessels=bk.vessels; charters=bk.charters; expenses=bk.expenses; payWeeks=bk.payWeeks; recon=bk.recon; refunds=bk.refunds; overhead=bk.overhead; members=bk.members; courses=bk.courses; capList=bk.capList; deals=bk.deals; apBills=bk.apBills; arInvoices=bk.arInvoices; openingCash=bk.openingCash;
+    curVid=null; curWeek=payWeeks.length-1;
+    var es=$("entity-sel"); if(es) es.value=id;
+    refreshSelects(); renderTypes(); initPayroll();
+    refreshAll();
+    go("dash");
+  }
+
   // ----- router -----
-  var views={dash:"view-dash", financials:"view-financials", vessels:"view-vessels", vdetail:"view-vdetail", charters:"view-charters", membership:"view-membership", sailing:"view-sailing", captains:"view-captains", brokerage:"view-brokerage", expenses:"view-expenses", payroll:"view-payroll", owners:"view-owners", recon:"view-recon", close:"view-close"};
+  var views={dash:"view-dash", financials:"view-financials", cashflow:"view-cashflow", vessels:"view-vessels", vdetail:"view-vdetail", charters:"view-charters", membership:"view-membership", sailing:"view-sailing", captains:"view-captains", brokerage:"view-brokerage", expenses:"view-expenses", payroll:"view-payroll", payables:"view-payables", receivables:"view-receivables", owners:"view-owners", recon:"view-recon", close:"view-close"};
   function activate(viewKey, navKey){
     Object.keys(views).forEach(function(k){ $(views[k]).classList.toggle("active", k===viewKey); });
     document.querySelectorAll(".nav-i").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-view")===(navKey||viewKey)); });
@@ -1427,8 +1741,9 @@
   $("vd-back").addEventListener("click", function(){ go("vessels"); });
 
   // ----- init -----
-  initCharters(); initExpenses(); initPayroll(); initOwners(); initMembership(); initAddVessel(); initAddCaptain(); initAddPay(); initAddCourse(); initAddRecon(); initCharterTypes(); renderTypes(); initRefunds(); initImport();
+  initCharters(); initExpenses(); initPayroll(); initOwners(); initMembership(); initAddVessel(); initAddCaptain(); initAddPay(); initAddCourse(); initAddRecon(); initCharterTypes(); renderTypes(); initRefunds(); initImport(); initAddBill(); initAddInvoice();
   renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage();
   renderPeriodControls();
-  renderDash(); renderFinancials(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderOwner(); renderRecon(); renderClose();
+  renderEntity();
+  renderDash(); renderFinancials(); renderCashflow(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderOwner(); renderRecon(); renderClose(); renderPayables(); renderReceivables();
 </script>
