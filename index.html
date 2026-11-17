@@ -195,6 +195,12 @@
   .modal-b{padding:16px; text-align:center}
   .modal-b img{max-width:100%; border-radius:6px; border:1px solid var(--line)}
   .modal-b .nd{color:var(--muted); font-size:13px; padding:28px 10px}
+
+  /* Period filter (Dashboard + Financials) */
+  .period{display:flex; align-items:center; gap:9px; max-width:100%}
+  .period .plab{font-size:10.5px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--faint); flex:none}
+  .period .segwrap{overflow-x:auto; max-width:100%; -webkit-overflow-scrolling:touch}
+  .period .seg{white-space:nowrap}
 </style>
 
 <div class="app">
@@ -249,7 +255,10 @@
 
       <!-- DASHBOARD -->
       <section class="view active" id="view-dash">
-        <div class="vhead"><div><h1>Fleet Overview</h1><div class="sub">Charter revenue, expenses, and owner payouts across the fleet for the current period.</div></div></div>
+        <div class="vhead">
+          <div><h1>Fleet Overview</h1><div class="sub">Charter revenue, expenses, and owner payouts across the fleet for the selected period.</div></div>
+          <div class="period"><span class="plab">Period</span><div class="segwrap"><div class="seg" id="dash-period"></div></div></div>
+        </div>
         <div class="kpis" id="kpis"></div>
         <div class="card">
           <div class="card-h"><h2>Per-Vessel P&amp;L</h2><span class="hint">Click a vessel to open its ledger</span></div>
@@ -263,7 +272,10 @@
 
       <!-- FINANCIALS (company P&L, live) -->
       <section class="view" id="view-financials">
-        <div class="vhead"><div><h1>Financials</h1><div class="sub">The company's live profit and loss. Revenue, expenses, and net income recompute automatically from the charter, expense, payroll, membership, and refund logs. Built to share with the business owner.</div></div></div>
+        <div class="vhead">
+          <div><h1>Financials</h1><div class="sub">The company's live profit and loss. Revenue, expenses, and net income recompute automatically from the charter, expense, payroll, membership, and refund logs. Built to share with the business owner.</div></div>
+          <div class="period"><span class="plab">Period</span><div class="segwrap"><div class="seg" id="fin-period"></div></div></div>
+        </div>
         <div class="kpis" id="fin-kpis"></div>
         <div class="two">
           <div class="card"><div class="card-h"><h2>Profit &amp; Loss</h2><span class="hint">Company, period to date</span></div><div class="card-b" id="fin-pnl"></div></div>
@@ -492,7 +504,7 @@
           <div class="card-b">
             <div class="grid">
               <div class="f"><label for="cap-name">Captain</label><input type="text" id="cap-name" placeholder="e.g. Capt. A. Rivera"></div>
-              <div class="f"><label for="cap-lic">USCG license</label><input type="text" id="cap-lic" placeholder="e.g. USCG Master 100 GT"></div>
+              <div class="f"><label for="cap-lic">USCG license reference #</label><input type="text" id="cap-lic" placeholder="e.g. 1456982"></div>
               <div class="f"><label for="cap-status">Status</label><select id="cap-status"><option>Available</option><option>Assigned</option></select></div>
               <div class="f"><label for="cap-assign">Assignment</label><input type="text" id="cap-assign" placeholder="Vessel or Unassigned"></div>
               <div class="f"><label for="cap-bill">Bill / day ($)</label><input type="number" id="cap-bill" placeholder="0" min="0"></div>
@@ -710,15 +722,67 @@
   function vExpTotal(id){ return vExpenses(id).reduce(function(s,e){ return s+e.amt; },0); }
   function vCaptExp(id){ return vExpenses(id).reduce(function(s,e){ return s+(e.cat==="Crew / captain"?e.amt:0); },0); }
   function vOpExp(id){ return vExpenses(id).reduce(function(s,e){ return s+(e.cat==="Crew / captain"?0:e.amt); },0); }
-  function vCalc(v){
-    var gross=vRevenue(v.id), opExp=vOpExp(v.id), capExp=vCaptExp(v.id);
+  function vMonthRaw(v){ return {gross:vRevenue(v.id), opExp:vOpExp(v.id), capExp:vCaptExp(v.id), n:vCharters(v.id).length}; }
+  function vCalcFrom(v, raw){
+    var gross=raw.gross, opExp=raw.opExp, capExp=raw.capExp;
     var mode=(v.capMode==="expense")?"expense":"service";
     var capDeducted=(mode==="expense")?capExp:0;
     var exp=opExp+capDeducted, net=gross-exp;
     var mgmtFee=gross*v.mgmt/100, dist=net-mgmtFee;
     var ownerShare=dist*v.ownerPct/100, coShare=dist*(100-v.ownerPct)/100;
-    return {gross:gross, exp:exp, opExp:opExp, capExp:capExp, capDeducted:capDeducted, capMode:mode, net:net, mgmtFee:mgmtFee, dist:dist, ownerShare:ownerShare, coShare:coShare, coTotal:mgmtFee+coShare, ratio: gross>0?exp/gross*100:0, charters:vCharters(v.id).length};
+    return {gross:gross, exp:exp, opExp:opExp, capExp:capExp, capDeducted:capDeducted, capMode:mode, net:net, mgmtFee:mgmtFee, dist:dist, ownerShare:ownerShare, coShare:coShare, coTotal:mgmtFee+coShare, ratio: gross>0?exp/gross*100:0, charters:raw.n};
   }
+  function vCalc(v){ return vCalcFrom(v, vMonthRaw(v)); }
+  function vCalcP(v, period){ return vCalcFrom(v, vPeriodRaw(v, period)); }
+
+  // ----- period filter (Dashboard + Financials) -----
+  // Month is the live baseline. Week zooms into the real last-7-days records.
+  // Quarter / 6 Months / Year add prior months, each scaled by a stable
+  // seasonal factor so every option recomputes to a different, sensible figure.
+  var curPeriod = "month";
+  var PERIODS = [{k:"week",t:"Week"},{k:"month",t:"Month"},{k:"quarter",t:"Quarter"},{k:"half",t:"6 Months"},{k:"year",t:"Year"}];
+  var periodMonthCount = {week:1, month:1, quarter:3, half:6, year:12};
+  var ASOF = "2026-11-16", WEEK_START = "2026-11-10";
+  function inWeek(rec){ return rec.date>=WEEK_START && rec.date<=ASOF; }
+  function seasonal(seed, offset){ var s=String(seed)+"|"+offset, h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=(h*16777619)>>>0; } return 0.74 + (h%1000)/1000*0.38; }
+  function periodMonthsExact(p){ return p==="week" ? 7/30 : periodMonthCount[p]; }
+  function periodFactor(seed, p){ if(p==="week") return 7/30; if(p==="month") return 1; var m=periodMonthCount[p], f=1; for(var k=1;k<m;k++) f+=seasonal(seed,k); return f; }
+  function vWeekRaw(v){
+    var cs=vCharters(v.id).filter(inWeek), es=vExpenses(v.id).filter(inWeek);
+    return {
+      gross:cs.reduce(function(s,c){ return s+c.hours*c.rate; },0),
+      opExp:es.reduce(function(s,e){ return s+(e.cat==="Crew / captain"?0:e.amt); },0),
+      capExp:es.reduce(function(s,e){ return s+(e.cat==="Crew / captain"?e.amt:0); },0),
+      n:cs.length
+    };
+  }
+  function vPeriodRaw(v, period){
+    if(period==="week") return vWeekRaw(v);
+    var base=vMonthRaw(v);
+    if(period==="month") return base;
+    var m=periodMonthCount[period], g=base.gross, o=base.opExp, cap=base.capExp, n=base.n;
+    for(var k=1;k<m;k++){ var f=seasonal(v.id,k); g+=base.gross*f; o+=base.opExp*f; cap+=base.capExp*f; n+=Math.round(base.n*f); }
+    return {gross:g, opExp:o, capExp:cap, n:n};
+  }
+  function periodRefunds(p){
+    if(p==="week") return refunds.filter(inWeek).reduce(function(s,r){ return s+r.amt; },0);
+    if(p==="month") return refundsTotal();
+    var base=refundsTotal(), m=periodMonthCount[p], t=base; for(var k=1;k<m;k++) t+=base*seasonal("refund",k); return t;
+  }
+  function periodFees(p){
+    if(p==="week") return recon.filter(inWeek).reduce(function(s,r){ return s+r.fee; },0);
+    if(p==="month") return merchantFees();
+    var base=merchantFees(), m=periodMonthCount[p], t=base; for(var k=1;k<m;k++) t+=base*seasonal("fees",k); return t;
+  }
+  function periodNote(p){ return ({week:"Last 7 days", month:"Nov MTD", quarter:"Last 3 months", half:"Last 6 months", year:"Trailing 12 mo"})[p]; }
+  function renderPeriodControls(){
+    ["dash-period","fin-period"].forEach(function(id){
+      var el=$(id); if(!el) return;
+      el.innerHTML = PERIODS.map(function(x){ return '<button type="button" data-p="'+x.k+'"'+(x.k===curPeriod?' class="on"':'')+'>'+x.t+'</button>'; }).join("");
+      el.querySelectorAll("button").forEach(function(b){ b.addEventListener("click", function(){ setPeriod(b.getAttribute("data-p")); }); });
+    });
+  }
+  function setPeriod(p){ if(!periodMonthCount[p]) return; curPeriod=p; renderPeriodControls(); renderDash(); renderFinancials(); }
   function statusTag(s){
     var k = s==="Paid"||s==="Matched"?"good":(s==="Pending"||s==="Variance"?"warn":(s==="Unmatched"?"bad":(s==="Approved"?"acc":"mut")));
     return '<span class="tag '+k+'">'+esc(s)+'</span>';
@@ -726,19 +790,20 @@
 
   // ----- dashboard -----
   function renderDash(){
+    var p=curPeriod, note=periodNote(p);
     var rev=0, exp=0, pay=0;
-    vessels.forEach(function(v){ var c=vCalc(v); rev+=c.gross; exp+=c.exp; pay+=c.ownerShare; });
+    vessels.forEach(function(v){ var c=vCalcP(v,p); rev+=c.gross; exp+=c.exp; pay+=c.ownerShare; });
     $("kpis").innerHTML = [
-      {k:"Charter revenue", v:money(rev), d:vessels.length+" vessels &middot; Nov MTD"},
+      {k:"Charter revenue", v:money(rev), d:vessels.length+" vessels &middot; "+note},
       {k:"Operating expenses", v:money(exp), d:"Logged across fleet"},
       {k:"Net income", v:money(rev-exp), d:"Before owner distribution"},
-      {k:"Owner payouts due", v:money(pay), d:"This period"}
+      {k:"Owner payouts due", v:money(pay), d:note}
     ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
 
     var rows='<tr><th>Vessel</th><th>HIN</th><th>Owner</th><th class="r">Charters</th><th class="r">Revenue</th><th class="r">Expenses</th><th class="r">Owner payout</th><th>Status</th></tr>';
     var flags=[];
     vessels.forEach(function(v){
-      var c=vCalc(v), flg=c.ratio>50;
+      var c=vCalcP(v,p), flg=c.ratio>50;
       if(flg) flags.push(v.name+" ("+r1(c.ratio)+"% expense ratio)");
       rows+='<tr class="clickable" data-vid="'+v.id+'"><td class="strong">'+esc(v.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(v.hin)+'</td><td>'+esc(ownerName(v))+'</td>'
         +'<td class="r num">'+c.charters+'</td><td class="r num">'+money(c.gross)+'</td><td class="r num">'+money(c.exp)+'</td><td class="r num strong">'+money(c.ownerShare)+'</td>'
@@ -1015,11 +1080,11 @@
 
   // ----- captain hiring -----
   var capList = [
-    {name:"Capt. J. Mercer", lic:"USCG Master 100 GT", status:"Assigned",  assign:"M/Y Gulf Serenity", bill:450, pay:350},
-    {name:"Capt. P. Nolan",  lic:"USCG Master 50 GT",  status:"Assigned",  assign:"S/Y Aurora Belle",  bill:480, pay:360},
-    {name:"Capt. L. Okafor", lic:"USCG Master 100 GT", status:"Assigned",  assign:"M/Y Sanibel Pearl", bill:430, pay:340},
-    {name:"Capt. R. Mensah", lic:"USCG Master 50 GT",  status:"Available", assign:"Unassigned",            bill:420, pay:330},
-    {name:"Capt. D. Fowler", lic:"USCG OUPV (6-pack)", status:"Available", assign:"Unassigned",            bill:380, pay:300}
+    {name:"Capt. J. Mercer", lic:"1456982", status:"Assigned",  assign:"M/Y Gulf Serenity", bill:450, pay:350},
+    {name:"Capt. P. Nolan",  lic:"1583047", status:"Assigned",  assign:"S/Y Aurora Belle",  bill:480, pay:360},
+    {name:"Capt. L. Okafor", lic:"1627310", status:"Assigned",  assign:"M/Y Sanibel Pearl", bill:430, pay:340},
+    {name:"Capt. R. Mensah", lic:"1712654", status:"Available", assign:"Unassigned",            bill:420, pay:330},
+    {name:"Capt. D. Fowler", lic:"1398225", status:"Available", assign:"Unassigned",            bill:380, pay:300}
   ];
   function renderCaptains(){
     var assigned=capList.filter(function(c){ return c.status==="Assigned"; });
@@ -1028,7 +1093,7 @@
       {k:"Captains on roster", v:capList.length},{k:"Assigned", v:assigned.length},
       {k:"Available", v:capList.length-assigned.length},{k:"Daily placement margin", v:money(margin)}
     ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div></div>'; }).join("");
-    var rows='<tr><th>Captain</th><th>USCG license</th><th>Status</th><th>Assignment</th><th class="r">Bill / day</th><th class="r">Pay / day</th><th class="r">Margin / day</th></tr>';
+    var rows='<tr><th>Captain</th><th>USCG license ref #</th><th>Status</th><th>Assignment</th><th class="r">Bill / day</th><th class="r">Pay / day</th><th class="r">Margin / day</th></tr>';
     capList.forEach(function(c){
       rows+='<tr><td class="strong">'+esc(c.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(c.lic)+'</td>'
         +'<td><span class="tag '+(c.status==="Assigned"?"acc":"mut")+'">'+esc(c.status)+'</span></td><td>'+esc(c.assign)+'</td>'
@@ -1058,12 +1123,13 @@
 
   // ----- divisions rollup (dashboard) -----
   function renderDivisions(){
-    var charterRev=0; vessels.forEach(function(v){ charterRev+=vRevenue(v.id); });
+    var p=curPeriod;
+    var charterRev=0, payouts=0; vessels.forEach(function(v){ var c=vCalcP(v,p); charterRev+=c.gross; payouts+=c.ownerShare; });
     var mrr=0; members.forEach(function(m){ if(m.status==="Active") mrr+=monthly(m); });
-    var sailRev=0; courses.forEach(function(c){ sailRev+=c.students*c.fee; });
+    var sailBase=0; courses.forEach(function(c){ sailBase+=c.students*c.fee; });
+    var sailRev=sailBase*periodFactor("sail",p);
     var capAssigned=capList.filter(function(c){ return c.status==="Assigned"; }).length;
     var pipeline=0; deals.forEach(function(d){ pipeline+=d.ask; });
-    var payouts=0; vessels.forEach(function(v){ payouts+=vCalc(v).ownerShare; });
     var rows=[
       {d:"Private charters",       m:money(charterRev)+" revenue",        v:"charters"},
       {d:"Yacht club membership",  m:money(mrr)+" / mo recurring",        v:"membership"},
@@ -1168,14 +1234,17 @@
   }
   function payrollNonCaptain(){ var s=0; payWeeks.forEach(function(w){ w.lines.forEach(function(l){ if(l.role!=="Captain") s+=l.amt; }); }); return s; }
   function merchantFees(){ return recon.reduce(function(s,r){ return s+r.fee; },0); }
-  function financials(){
-    var rCharter=0; vessels.forEach(function(v){ rCharter+=vCalc(v).coTotal; });
-    var rMember=0; members.forEach(function(m){ if(m.status==="Active") rMember+=monthly(m); });
-    var rSail=0; courses.forEach(function(c){ rSail+=c.students*c.fee; });
-    var rCapt=captainMargin(), rBrk=0;
+  function financials(period){
+    var p=period||"month";
+    var rCharter=0; vessels.forEach(function(v){ rCharter+=vCalcP(v,p).coTotal; });
+    var mrrBase=0; members.forEach(function(m){ if(m.status==="Active") mrrBase+=monthly(m); });
+    var rMember=mrrBase*periodMonthsExact(p);
+    var sailBase=0; courses.forEach(function(c){ sailBase+=c.students*c.fee; });
+    var rSail=sailBase*periodFactor("sail",p);
+    var rCapt=captainMargin()*periodFactor("capt",p), rBrk=0;
     var gross=rCharter+rMember+rSail+rCapt+rBrk;
-    var refs=refundsTotal(), netRev=gross-refs;
-    var ePay=payrollNonCaptain(), eFee=merchantFees(), eOh=overhead.reduce(function(s,o){ return s+o.amt; },0);
+    var refs=periodRefunds(p), netRev=gross-refs;
+    var ePay=payrollNonCaptain()*periodFactor("pay",p), eFee=periodFees(p), eOh=overhead.reduce(function(s,o){ return s+o.amt; },0)*periodMonthsExact(p);
     var totalExp=ePay+eFee+eOh, netIncome=netRev-totalExp;
     return {rCharter:rCharter,rMember:rMember,rSail:rSail,rCapt:rCapt,rBrk:rBrk,gross:gross,refs:refs,netRev:netRev,ePay:ePay,eFee:eFee,eOh:eOh,totalExp:totalExp,netIncome:netIncome,margin:netRev>0?netIncome/netRev*100:0};
   }
@@ -1186,11 +1255,11 @@
   }
   function renderFinancials(){
     if(!$("fin-kpis")) return;
-    var f=financials();
+    var p=curPeriod, f=financials(p);
     $("fin-kpis").innerHTML=[
       {k:"Total revenue", v:money(f.netRev), d:"Net of refunds"},
       {k:"Total expenses", v:money(f.totalExp), d:"Payroll, fees, overhead"},
-      {k:"Net income", v:money(f.netIncome), d:"Company, Nov MTD"},
+      {k:"Net income", v:money(f.netIncome), d:"Company, "+periodNote(p)},
       {k:"Net margin", v:r1(f.margin)+"%", d:"Net income / revenue"}
     ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
     $("fin-pnl").innerHTML =
@@ -1302,7 +1371,7 @@
   function initAddCaptain(){
     $("cap-add").addEventListener("click", function(){
       var nm=$("cap-name").value.trim(), lic=$("cap-lic").value.trim();
-      if(!nm||!lic){ $("cap-msg").style.color="var(--bad)"; $("cap-msg").textContent="Enter a captain name and license."; return; }
+      if(!nm||!lic){ $("cap-msg").style.color="var(--bad)"; $("cap-msg").textContent="Enter a captain name and license reference #."; return; }
       capList.push({name:nm, lic:lic, status:$("cap-status").value, assign:$("cap-assign").value.trim()||"Unassigned", bill:parseFloat($("cap-bill").value)||0, pay:parseFloat($("cap-pay").value)||0});
       $("cap-name").value=""; $("cap-lic").value=""; $("cap-assign").value=""; $("cap-bill").value=""; $("cap-pay").value="";
       $("cap-msg").style.color="var(--good)"; $("cap-msg").textContent="Captain added to the roster.";
@@ -1360,5 +1429,6 @@
   // ----- init -----
   initCharters(); initExpenses(); initPayroll(); initOwners(); initMembership(); initAddVessel(); initAddCaptain(); initAddPay(); initAddCourse(); initAddRecon(); initCharterTypes(); renderTypes(); initRefunds(); initImport();
   renderMembership(); renderReminders(); renderSailing(); renderCaptains(); renderBrokerage();
+  renderPeriodControls();
   renderDash(); renderFinancials(); renderVessels(); renderCharters(); renderExpenses(); renderPayroll(); renderOwner(); renderRecon(); renderClose();
 </script>
