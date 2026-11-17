@@ -448,6 +448,7 @@
               <div class="f"><label for="p-name">Name</label><input type="text" id="p-name" placeholder="e.g. Capt. A. Rivera"></div>
               <div class="f"><label for="p-role">Role</label><input type="text" id="p-role" placeholder="e.g. Captain"></div>
               <div class="f"><label for="p-assign">Assignment</label><input type="text" id="p-assign" placeholder="Vessel or division"></div>
+              <div class="f"><label for="p-email">Staff email</label><input type="email" id="p-email" placeholder="crew@company.com"><div style="font-size:10px;color:var(--faint);margin-top:2px">Where the paid notice is sent</div></div>
               <div class="f"><label for="p-type">Type</label><select id="p-type"><option>Contract</option><option>Hourly</option></select></div>
               <div class="f"><label for="p-hours">Hours (if hourly)</label><input type="number" id="p-hours" placeholder="0" min="0"></div>
               <div class="f"><label for="p-rate">Rate (if hourly)</label><input type="number" id="p-rate" placeholder="0" min="0"></div>
@@ -487,6 +488,7 @@
               <div class="f"><label for="ap-bdate">Bill date</label><input type="date" id="ap-bdate" value="2026-11-16"></div>
               <div class="f"><label for="ap-due">Due date</label><input type="date" id="ap-due" value="2026-12-01"></div>
               <div class="f"><label for="ap-amt">Amount ($)</label><input type="number" id="ap-amt" placeholder="0" min="0"></div>
+              <div class="f"><label for="ap-route">Route reminders to</label><input type="email" id="ap-route" value="a.flores@gulfcoastyachts.example" placeholder="ap.owner@company.com"><div style="font-size:10px;color:var(--faint);margin-top:2px">Who gets the supplier payment reminder</div></div>
             </div>
             <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap"><button class="btn" id="ap-add">Add bill</button><button class="btn ghost" id="ap-batch">Approve batch (due within 7 days)</button><span class="msg" id="ap-msg"></span></div>
           </div>
@@ -504,6 +506,7 @@
           <div class="card-b">
             <div class="grid">
               <div class="f"><label for="ar-cust">Customer</label><input type="text" id="ar-cust" placeholder="e.g. Meridian Capital"></div>
+              <div class="f"><label for="ar-email">Customer email</label><input type="email" id="ar-email" placeholder="billing@customer.com"><div style="font-size:10px;color:var(--faint);margin-top:2px">Where invoice reminders are sent</div></div>
               <div class="f"><label for="ar-div">Division</label><select id="ar-div"><option>Charter</option><option>Membership</option><option>Sailing school</option><option>Captain services</option><option>Brokerage</option><option>Other</option></select></div>
               <div class="f"><label for="ar-vessel">Vessel (optional)</label><select id="ar-vessel"></select></div>
               <div class="f"><label for="ar-idate">Invoice date</label><input type="date" id="ar-idate" value="2026-11-16"></div>
@@ -754,6 +757,18 @@
       {name:"S. Delgado",      role:"Instructor", assign:"Sailing School", type:"Contract", hours:null, rate:null, amt:450, status:"Pending"}
     ]}
   ];
+  // Staff directory: where payroll "paid" notices are sent, keyed by name (spans both entities).
+  var staffEmail = {
+    "Capt. J. Mercer":"j.mercer@crew.gulfcoastyachts.example",
+    "Capt. P. Nolan":"p.nolan@crew.gulfcoastyachts.example",
+    "Capt. L. Okafor":"l.okafor@crew.gulfcoastyachts.example",
+    "Capt. R. Mensah":"r.mensah@crew.gulfcoastyachts.example",
+    "M. Alvarez":"m.alvarez@crew.gulfcoastyachts.example",
+    "S. Delgado":"s.delgado@crew.gulfcoastyachts.example",
+    "Capt. T. Brandt":"t.brandt@crew.marinerholdings.example",
+    "Capt. E. Salas":"e.salas@crew.marinerholdings.example",
+    "R. Pike":"r.pike@crew.marinerholdings.example"
+  };
   var processors = {
     "Stripe":{pct:2.9,flat:0.30}, "PayPal":{pct:3.49,flat:0.49}, "Square":{pct:2.6,flat:0.10},
     "Website":{pct:2.9,flat:0.30}, "ACH":{pct:0.8,flat:0,cap:5}, "Zelle":{pct:0,flat:0}, "Cash / check":{pct:0,flat:0}
@@ -788,26 +803,26 @@
   ];
   var apid=1;
   var apBills = [
-    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"ab", billDate:"2026-10-05", due:"2026-11-04", amt:4900, status:"Open"},
-    {id:apid++, vendor:"Marina Fuel Dock",           vesselId:"gs", billDate:"2026-11-02", due:"2026-11-12", amt:2400, status:"Open"},
-    {id:apid++, vendor:"Sarasota Bay Marina",        vesselId:"gs", billDate:"2026-11-08", due:"2026-11-23", amt:600,  status:"Open"},
-    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"mb", billDate:"2026-11-10", due:"2026-11-25", amt:500,  status:"Open"},
-    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"gs", billDate:"2026-09-05", due:"2026-09-10", amt:1500, status:"Open"},
-    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"ab", billDate:"2026-09-25", due:"2026-10-05", amt:430,  status:"Open"},
-    {id:apid++, vendor:"Coastal Insurance Partners", vesselId:"",   billDate:"2026-11-01", due:"2026-12-01", amt:2800, status:"Open"},
-    {id:apid++, vendor:"Naples City Dock",           vesselId:"sp", billDate:"2026-10-28", due:"2026-11-12", amt:650,  status:"Open"},
-    {id:apid++, vendor:"BlueWave Detailing",         vesselId:"sp", billDate:"2026-08-20", due:"2026-09-19", amt:800,  status:"Paid", paidDate:"2026-09-25"}
+    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"ab", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-10-05", due:"2026-11-04", amt:4900, status:"Open"},
+    {id:apid++, vendor:"Marina Fuel Dock",           vesselId:"gs", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-11-02", due:"2026-11-12", amt:2400, status:"Open"},
+    {id:apid++, vendor:"Sarasota Bay Marina",        vesselId:"gs", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-11-08", due:"2026-11-23", amt:600,  status:"Open"},
+    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"mb", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-11-10", due:"2026-11-25", amt:500,  status:"Open"},
+    {id:apid++, vendor:"Reliant Marine Repair",      vesselId:"gs", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-09-05", due:"2026-09-10", amt:1500, status:"Open"},
+    {id:apid++, vendor:"Gulf Provisions Co.",        vesselId:"ab", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-09-25", due:"2026-10-05", amt:430,  status:"Open"},
+    {id:apid++, vendor:"Coastal Insurance Partners", vesselId:"",   routeTo:"finance@gulfcoastyachts.example",  billDate:"2026-11-01", due:"2026-12-01", amt:2800, status:"Open"},
+    {id:apid++, vendor:"Naples City Dock",           vesselId:"sp", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-10-28", due:"2026-11-12", amt:650,  status:"Open"},
+    {id:apid++, vendor:"BlueWave Detailing",         vesselId:"sp", routeTo:"a.flores@gulfcoastyachts.example", billDate:"2026-08-20", due:"2026-09-19", amt:800,  status:"Paid", paidDate:"2026-09-25"}
   ];
   var arid=1;
   var arInvoices = [
-    {id:arid++, customer:"Meridian Capital", division:"Charter",    vesselId:"gs", invDate:"2026-11-04", due:"2026-11-19", amt:5400, status:"Open"},
-    {id:arid++, customer:"Atwater Group",    division:"Charter",    vesselId:"gs", invDate:"2026-10-20", due:"2026-11-04", amt:5280, status:"Open"},
-    {id:arid++, customer:"Lang Group",       division:"Charter",    vesselId:"ab", invDate:"2026-11-06", due:"2026-11-21", amt:8800, status:"Open"},
-    {id:arid++, customer:"Okonkwo Wedding",  division:"Charter",    vesselId:"ab", invDate:"2026-09-28", due:"2026-10-13", amt:4900, status:"Open"},
-    {id:arid++, customer:"Summit LLC",       division:"Charter",    vesselId:"sp", invDate:"2026-11-10", due:"2026-11-25", amt:3600, status:"Open"},
-    {id:arid++, customer:"Coastal Group",    division:"Membership", vesselId:"",   invDate:"2026-08-30", due:"2026-09-14", amt:8400, status:"Open"},
-    {id:arid++, customer:"Vantage Corp",     division:"Charter",    vesselId:"sp", invDate:"2026-10-30", due:"2026-11-14", amt:2600, status:"Open"},
-    {id:arid++, customer:"Pierce Family",    division:"Charter",    vesselId:"gs", invDate:"2026-11-01", due:"2026-11-10", amt:5760, status:"Paid", paidDate:"2026-11-09"}
+    {id:arid++, customer:"Meridian Capital", email:"ap@meridiancapital.example",    division:"Charter",    vesselId:"gs", invDate:"2026-11-04", due:"2026-11-19", amt:5400, status:"Open"},
+    {id:arid++, customer:"Atwater Group",    email:"accounts@atwatergroup.example", division:"Charter",    vesselId:"gs", invDate:"2026-10-20", due:"2026-11-04", amt:5280, status:"Open"},
+    {id:arid++, customer:"Lang Group",       email:"finance@langgroup.example",     division:"Charter",    vesselId:"ab", invDate:"2026-11-06", due:"2026-11-21", amt:8800, status:"Open"},
+    {id:arid++, customer:"Okonkwo Wedding",  email:"okonkwo.wedding@example.com",   division:"Charter",    vesselId:"ab", invDate:"2026-09-28", due:"2026-10-13", amt:4900, status:"Open"},
+    {id:arid++, customer:"Summit LLC",       email:"billing@summitllc.example",     division:"Charter",    vesselId:"sp", invDate:"2026-11-10", due:"2026-11-25", amt:3600, status:"Open"},
+    {id:arid++, customer:"Coastal Group",    email:"ap@coastalgroup.example.com",   division:"Membership", vesselId:"",   invDate:"2026-08-30", due:"2026-09-14", amt:8400, status:"Open"},
+    {id:arid++, customer:"Vantage Corp",     email:"accounts@vantagecorp.example",  division:"Charter",    vesselId:"sp", invDate:"2026-10-30", due:"2026-11-14", amt:2600, status:"Open"},
+    {id:arid++, customer:"Pierce Family",    email:"pierce.family@example.com",     division:"Charter",    vesselId:"gs", invDate:"2026-11-01", due:"2026-11-10", amt:5760, status:"Paid", paidDate:"2026-11-09"}
   ];
   var openingCash = {gs:48500, ab:33200, sp:36800, mb:22400, co:60000};
 
@@ -815,6 +830,7 @@
   function vessel(id){ for(var i=0;i<vessels.length;i++) if(vessels[i].id===id) return vessels[i]; }
   function owner(id){ for(var i=0;i<owners.length;i++) if(owners[i].id===id) return owners[i]; }
   function ownerName(v){ var o=owner(v.ownerId); return o?o.name:""; }
+  function ownerEmail(v){ var o=owner(v.ownerId); return o?(o.email||""):""; }
   function vCharters(id){ return charters.filter(function(c){ return c.vesselId===id; }); }
   function vExpenses(id){ return expenses.filter(function(e){ return e.vesselId===id; }); }
   function vRevenue(id){ return vCharters(id).reduce(function(s,c){ return s+c.hours*c.rate; },0); }
@@ -922,7 +938,7 @@
     var rows='<tr><th>Vessel</th><th>HIN</th><th>State reg.</th><th>Owner</th><th>Fee / Split</th><th>Status</th><th></th></tr>';
     vessels.forEach(function(v){
       rows+='<tr class="clickable" data-vid="'+v.id+'"><td class="strong">'+esc(v.name)+'</td><td class="mono" style="font-size:11.5px">'+esc(v.hin)+'</td>'
-        +'<td class="mono" style="font-size:11.5px">'+esc(v.reg)+'</td><td>'+esc(ownerName(v))+'</td>'
+        +'<td class="mono" style="font-size:11.5px">'+esc(v.reg)+'</td><td>'+esc(ownerName(v))+'<br><span class="mono" style="font-size:10.5px;color:var(--faint)">'+esc(ownerEmail(v)||"no email on file")+'</span></td>'
         +'<td class="num">'+v.mgmt+'% &middot; '+v.ownerPct+'/'+(100-v.ownerPct)+' <span class="tag mut" style="margin-left:4px">Capt: '+((v.capMode==="expense")?"owner":"company")+'</span></td><td><span class="tag good">'+esc(v.status)+'</span></td>'
         +'<td class="r"><span class="link">Open &rarr;</span></td></tr>';
     });
@@ -1068,7 +1084,7 @@
     $("wk-total").textContent="Run total "+money(tot);
     var rows='<tr><th>Name</th><th>Role</th><th>Assignment</th><th>Type</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Amount</th><th>Status</th></tr>';
     w.lines.forEach(function(l){
-      rows+='<tr><td class="strong">'+esc(l.name)+'</td><td>'+esc(l.role)+'</td><td>'+esc(l.assign)+'</td><td>'+esc(l.type)+'</td>'
+      rows+='<tr><td class="strong">'+esc(l.name)+'<br><span class="mono" style="font-size:10.5px;color:var(--faint)">'+esc(l.email||staffEmail[l.name]||"no email")+'</span></td><td>'+esc(l.role)+'</td><td>'+esc(l.assign)+'</td><td>'+esc(l.type)+'</td>'
         +'<td class="r num">'+(l.hours!=null?l.hours:'-')+'</td><td class="r num">'+(l.rate!=null?money(l.rate):'-')+'</td>'
         +'<td class="r num strong">'+money(l.amt)+'</td><td>'+statusTag(l.status)+'</td></tr>';
     });
@@ -1504,8 +1520,9 @@
       var h=parseFloat($("p-hours").value), rt=parseFloat($("p-rate").value), am=parseFloat($("p-amt").value);
       var amount=(!isNaN(h)&&!isNaN(rt)&&h>0&&rt>0)?h*rt:(am||0);
       if(!nm||amount<=0){ $("p-msg").style.color="var(--bad)"; $("p-msg").textContent="Enter a name and either hours and rate, or a flat amount."; return; }
-      payWeeks[curWeek].lines.push({name:nm, role:$("p-role").value.trim()||"Contractor", assign:$("p-assign").value.trim()||"Fleet", type:$("p-type").value, hours:(!isNaN(h)&&h>0)?h:null, rate:(!isNaN(rt)&&rt>0)?rt:null, amt:amount, status:"Pending"});
-      $("p-name").value=""; $("p-role").value=""; $("p-assign").value=""; $("p-hours").value=""; $("p-rate").value=""; $("p-amt").value="";
+      var pem=$("p-email").value.trim(); if(nm&&pem) staffEmail[nm]=pem;
+      payWeeks[curWeek].lines.push({name:nm, email:pem, role:$("p-role").value.trim()||"Contractor", assign:$("p-assign").value.trim()||"Fleet", type:$("p-type").value, hours:(!isNaN(h)&&h>0)?h:null, rate:(!isNaN(rt)&&rt>0)?rt:null, amt:amount, status:"Pending"});
+      $("p-name").value=""; $("p-role").value=""; $("p-assign").value=""; $("p-hours").value=""; $("p-rate").value=""; $("p-amt").value=""; $("p-email").value="";
       $("p-msg").style.color="var(--good)"; $("p-msg").textContent="Pay line added to the selected week.";
       refreshAll();
     });
@@ -1562,16 +1579,16 @@
     ].map(function(x){ return '<div class="kpi"><div class="k">'+x.k+'</div><div class="v num">'+x.v+'</div><div class="d">'+x.d+'</div></div>'; }).join("");
     var buckets={}; open.forEach(function(b){ var k=agingBucket(b.due); buckets[k]=(buckets[k]||0)+b.amt; });
     $("ap-aging").innerHTML=agingStrip(buckets);
-    var rows='<tr><th>Vendor</th><th>Allocation</th><th>Bill date</th><th>Due date</th><th class="r">Amount</th><th>Aging</th><th>Status</th><th class="r">Action</th></tr>';
+    var rows='<tr><th>Vendor</th><th>Allocation</th><th>Reminder to</th><th>Bill date</th><th>Due date</th><th class="r">Amount</th><th>Aging</th><th>Status</th><th class="r">Action</th></tr>';
     apBills.slice().sort(function(a,b){ return a.due<b.due?-1:1; }).forEach(function(b){
       var action;
       if(b.status==="Paid") action='<span class="none">Paid '+esc(b.paidDate||"")+'</span>';
       else if(b.status==="Scheduled") action='<button class="btn" style="padding:4px 10px" data-ap-pay="'+b.id+'">Mark paid</button> <button class="del" data-ap-del="'+b.id+'">Remove</button>';
       else action='<button class="btn ghost" style="padding:4px 10px" data-ap-approve="'+b.id+'">Approve for payment</button> <button class="del" data-ap-del="'+b.id+'">Remove</button>';
-      rows+='<tr><td class="strong">'+esc(b.vendor)+'</td><td>'+esc(allocName(b.vesselId))+'</td><td>'+esc(b.billDate)+'</td><td>'+esc(b.due)+'</td>'
+      rows+='<tr><td class="strong">'+esc(b.vendor)+'</td><td>'+esc(allocName(b.vesselId))+'</td><td class="mono" style="font-size:10.5px">'+esc(b.routeTo||"not set")+'</td><td>'+esc(b.billDate)+'</td><td>'+esc(b.due)+'</td>'
         +'<td class="r num">'+money(b.amt)+'</td><td>'+agingTag(b.due, b.status==="Paid")+'</td><td>'+apStatusTag(b.status)+'</td><td class="r">'+action+'</td></tr>';
     });
-    rows+='<tr><td colspan="4" class="strong">Total open payable</td><td class="r num strong">'+money(totalPay)+'</td><td colspan="3"></td></tr>';
+    rows+='<tr><td colspan="5" class="strong">Total open payable</td><td class="r num strong">'+money(totalPay)+'</td><td colspan="3"></td></tr>';
     $("ap-tbl").innerHTML=rows;
     $("ap-tbl").querySelectorAll("[data-ap-approve]").forEach(function(btn){ btn.addEventListener("click", function(){ var b=apBills.filter(function(x){ return x.id==btn.getAttribute("data-ap-approve"); })[0]; if(b){ b.status="Scheduled"; renderPayables(); } }); });
     $("ap-tbl").querySelectorAll("[data-ap-pay]").forEach(function(btn){ btn.addEventListener("click", function(){ var b=apBills.filter(function(x){ return x.id==btn.getAttribute("data-ap-pay"); })[0]; if(b){ b.status="Paid"; b.paidDate=ASOF; $("ap-msg").style.color="var(--good)"; $("ap-msg").textContent="Bill paid. Posted as a cash outflow on the Cash Flow tab."; refreshAll(); } }); });
@@ -1582,7 +1599,7 @@
     $("ap-add").addEventListener("click", function(){
       var vn=$("ap-vendor").value.trim(), a=parseFloat($("ap-amt").value);
       if(!vn||isNaN(a)||a<=0){ $("ap-msg").style.color="var(--bad)"; $("ap-msg").textContent="Enter a vendor and an amount above zero."; return; }
-      apBills.push({id:apid++, vendor:vn, vesselId:$("ap-alloc").value, billDate:$("ap-bdate").value||"2026-11-16", due:$("ap-due").value||"2026-12-01", amt:a, status:"Open"});
+      apBills.push({id:apid++, vendor:vn, vesselId:$("ap-alloc").value, routeTo:$("ap-route").value.trim(), billDate:$("ap-bdate").value||"2026-11-16", due:$("ap-due").value||"2026-12-01", amt:a, status:"Open"});
       $("ap-vendor").value=""; $("ap-amt").value="";
       $("ap-msg").style.color="var(--good)"; $("ap-msg").textContent="Bill recorded in payables.";
       renderPayables();
@@ -1615,7 +1632,7 @@
       var action;
       if(b.status==="Paid") action='<span class="none">Paid '+esc(b.paidDate||"")+'</span>';
       else action='<button class="btn" style="padding:4px 10px" data-ar-pay="'+b.id+'">Record payment</button> <button class="del" data-ar-del="'+b.id+'">Remove</button>';
-      rows+='<tr><td class="strong">'+esc(b.customer)+'</td><td>'+esc(b.division||"")+'</td><td>'+(b.vesselId?esc(allocName(b.vesselId)):'<span class="none">Company-wide</span>')+'</td><td>'+esc(b.invDate)+'</td><td>'+esc(b.due)+'</td>'
+      rows+='<tr><td class="strong">'+esc(b.customer)+'<br><span class="mono" style="font-size:10.5px;color:var(--faint)">'+esc(b.email||"no email on file")+'</span></td><td>'+esc(b.division||"")+'</td><td>'+(b.vesselId?esc(allocName(b.vesselId)):'<span class="none">Company-wide</span>')+'</td><td>'+esc(b.invDate)+'</td><td>'+esc(b.due)+'</td>'
         +'<td class="r num">'+money(b.amt)+'</td><td>'+agingTag(b.due, b.status==="Paid")+'</td><td>'+apStatusTag(b.status)+'</td><td class="r">'+action+'</td></tr>';
     });
     rows+='<tr><td colspan="5" class="strong">Total open receivable</td><td class="r num strong">'+money(totalRec)+'</td><td colspan="3"></td></tr>';
@@ -1628,8 +1645,8 @@
     $("ar-add").addEventListener("click", function(){
       var cu=$("ar-cust").value.trim(), a=parseFloat($("ar-amt").value);
       if(!cu||isNaN(a)||a<=0){ $("ar-msg").style.color="var(--bad)"; $("ar-msg").textContent="Enter a customer and an amount above zero."; return; }
-      arInvoices.push({id:arid++, customer:cu, division:$("ar-div").value, vesselId:$("ar-vessel").value, invDate:$("ar-idate").value||"2026-11-16", due:$("ar-due").value||"2026-12-01", amt:a, status:"Open"});
-      $("ar-cust").value=""; $("ar-amt").value="";
+      arInvoices.push({id:arid++, customer:cu, email:$("ar-email").value.trim(), division:$("ar-div").value, vesselId:$("ar-vessel").value, invDate:$("ar-idate").value||"2026-11-16", due:$("ar-due").value||"2026-12-01", amt:a, status:"Open"});
+      $("ar-cust").value=""; $("ar-amt").value=""; $("ar-email").value="";
       $("ar-msg").style.color="var(--good)"; $("ar-msg").textContent="Invoice raised in receivables.";
       renderReceivables();
     });
@@ -1720,14 +1737,14 @@
         {name:"Capt. E. Salas",  lic:"1847559", status:"Assigned", assign:"S/Y Tradewind Calypso", bill:450, pay:350}
       ];
       var ap=[
-        {id:apid++, vendor:"Harbor Diesel Supply",  vesselId:"nw", billDate:"2026-10-28", due:"2026-11-12", amt:2200, status:"Open"},
-        {id:apid++, vendor:"Gulf Marine Insurance", vesselId:"",   billDate:"2026-11-01", due:"2026-12-01", amt:1400, status:"Open"},
-        {id:apid++, vendor:"Tradewind Rigging",     vesselId:"tc", billDate:"2026-09-22", due:"2026-10-07", amt:1200, status:"Open"}
+        {id:apid++, vendor:"Harbor Diesel Supply",  vesselId:"nw", routeTo:"ops@marinerholdings.example",     billDate:"2026-10-28", due:"2026-11-12", amt:2200, status:"Open"},
+        {id:apid++, vendor:"Gulf Marine Insurance", vesselId:"",   routeTo:"finance@marinerholdings.example", billDate:"2026-11-01", due:"2026-12-01", amt:1400, status:"Open"},
+        {id:apid++, vendor:"Tradewind Rigging",     vesselId:"tc", routeTo:"ops@marinerholdings.example",     billDate:"2026-09-22", due:"2026-10-07", amt:1200, status:"Open"}
       ];
       var ar=[
-        {id:arid++, customer:"Atlas Freight Co.", division:"Charter", vesselId:"nw", invDate:"2026-11-05", due:"2026-11-20", amt:6000, status:"Open"},
-        {id:arid++, customer:"Delmar Events",     division:"Charter", vesselId:"tc", invDate:"2026-10-18", due:"2026-11-02", amt:4500, status:"Open"},
-        {id:arid++, customer:"Northgate LLC",     division:"Charter", vesselId:"nw", invDate:"2026-11-01", due:"2026-11-10", amt:6800, status:"Paid", paidDate:"2026-11-08"}
+        {id:arid++, customer:"Atlas Freight Co.", email:"ap@atlasfreight.example",      division:"Charter", vesselId:"nw", invDate:"2026-11-05", due:"2026-11-20", amt:6000, status:"Open"},
+        {id:arid++, customer:"Delmar Events",     email:"billing@delmarevents.example", division:"Charter", vesselId:"tc", invDate:"2026-10-18", due:"2026-11-02", amt:4500, status:"Open"},
+        {id:arid++, customer:"Northgate LLC",     email:"accounts@northgate.example",   division:"Charter", vesselId:"nw", invDate:"2026-11-01", due:"2026-11-10", amt:6800, status:"Paid", paidDate:"2026-11-08"}
       ];
       return {owners:ow, vessels:vs, charters:ch, expenses:ex, payWeeks:pw, recon:rc, refunds:[], overhead:oh, members:[], courses:[], capList:cl, deals:[], apBills:ap, arInvoices:ar, openingCash:{nw:51000, tc:38000, co:25000}};
     })()
