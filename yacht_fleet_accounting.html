@@ -954,6 +954,8 @@
       var tag=(isCap&&svc)?' <span class="tag mut" style="margin-left:4px">company service</span>':'';
       ex+='<tr><td>'+esc(e.date)+'</td><td>'+esc(e.cat)+tag+'</td><td class="r num">'+money(e.amt)+'</td><td>'+receiptCell(e)+'</td></tr>';
     });
+    ex+='<tr><td colspan="2" class="strong">Total expenses</td><td class="r num strong">'+money(c.opExp+c.capExp)+'</td><td></td></tr>';
+    if(svc && c.capExp>0) ex+='<tr><td colspan="2" style="color:var(--muted)">Less: captain billed as company service</td><td class="r num" style="color:var(--muted)">'+money(-c.capExp)+'</td><td></td></tr>';
     ex+='<tr><td colspan="2" class="strong">Deductible to owner</td><td class="r num strong">'+money(c.exp)+'</td><td></td></tr>';
     $("vd-expenses").innerHTML=ex;
     bindReceipts($("vd-expenses"));
@@ -1093,7 +1095,7 @@
       vCharters(v.id).forEach(function(ch){ html+='<div class="sr ind"><span class="l">'+esc(ch.date)+' &middot; '+esc(ch.ctype)+' &middot; '+ch.hours+'h @ '+money(ch.rate)+'</span><span class="v">'+money(ch.hours*ch.rate)+'</span></div>'; });
       html+='<div class="sr tot"><span class="l">Gross charter revenue</span><span class="v">'+money(c.gross)+'</span></div>'
         +'<div class="seclab">Expenses</div>';
-      vExpenses(v.id).forEach(function(e){ var isCap=e.cat==="Crew / captain"; var tg=(isCap&&c.capMode==="service")?' <span class="tag mut">company service</span>':''; html+='<div class="sr ind"><span class="l">'+esc(e.cat)+' &middot; '+esc(e.vendor)+tg+'</span><span class="v">'+money(e.amt)+'</span></div>'; });
+      vExpenses(v.id).forEach(function(e){ if(e.cat==="Crew / captain" && c.capMode==="service") return; html+='<div class="sr ind"><span class="l">'+esc(e.cat)+' &middot; '+esc(e.vendor)+'</span><span class="v">'+money(e.amt)+'</span></div>'; });
       html+='<div class="sr tot"><span class="l">Deductible expenses</span><span class="v">'+money(c.exp)+'</span></div>'
         +'<div class="seclab">Distribution</div>'
         +'<div class="sr"><span class="l">Net charter income</span><span class="v">'+money(c.net)+'</span></div>'
